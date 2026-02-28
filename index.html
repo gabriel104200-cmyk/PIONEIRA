@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sistema</title>
+
+  <!-- ✅ Ajuste BASE_PATH para o nome do seu repo no Pages -->
+  <script>
+    // Se seu site for: https://SEUUSUARIO.github.io/Pioneira/
+    // então BASE_PATH = "/Pioneira"
+    const BASE_PATH = "/Pioneira";
+  </script>
+
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#2c1a4d" />
+
+  <style>
+    :root{
+      --bg:#0f1116; --panel:#141823; --panel2:#10131c;
+      --text:#e8eaf0; --muted:#9aa3b2; --line:#253042;
+      --accent:#7c3aed; --accent2:#22c55e; --warn:#ef4444;
+      --radius:14px;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0b0d12, #0f1116);color:var(--text)}
+    a{color:inherit}
+    .wrap{max-width:1100px;margin:0 auto;padding:18px}
+    .topbar{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;
+      background:rgba(20,24,35,.7);border:1px solid var(--line);
+      padding:14px 16px;border-radius:var(--radius);box-shadow:var(--shadow);
+      position:sticky;top:10px;backdrop-filter: blur(10px);
+    }
+    .brand{display:flex;align-items:center;gap:10px}
+    .pill{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:4px 10px;border-radius:999px;background:rgba(16,19,28,.55)}
+    .btn{cursor:pointer;border:1px solid var(--line);background:rgba(16,19,28,.9);color:var(--text);
+      padding:10px 12px;border-radius:12px;font-weight:600}
+    .btn:hover{border-color:#3b4a66}
+    .btn.primary{background:linear-gradient(135deg,var(--accent),#4c1d95);border-color:transparent}
+    .btn.good{background:linear-gradient(135deg,#16a34a,#14532d);border-color:transparent}
+    .btn.warn{background:linear-gradient(135deg,#ef4444,#7f1d1d);border-color:transparent}
+    .grid{display:grid;grid-template-columns:280px 1fr;gap:14px;margin-top:14px}
+    .card{background:rgba(20,24,35,.75);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .card h2{margin:0 0 10px 0;font-size:18px}
+    .side{padding:14px}
+    .main{padding:14px;min-height:520px}
+    .nav a{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:10px 12px;border-radius:12px;text-decoration:none;
+      color:var(--text);border:1px solid transparent
+    }
+    .nav a:hover{background:rgba(16,19,28,.7);border-color:var(--line)}
+    .nav a.active{background:rgba(124,58,237,.15);border-color:rgba(124,58,237,.35)}
+    .muted{color:var(--muted);font-size:13px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .sep{height:1px;background:var(--line);margin:12px 0}
+    textarea,input,select{
+      width:100%;background:rgba(16,19,28,.9);border:1px solid var(--line);
+      color:var(--text);border-radius:12px;padding:10px 12px;outline:none
+    }
+    textarea{min-height:150px;resize:vertical}
+    table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
+    th,td{border-bottom:1px solid rgba(37,48,66,.6);padding:8px 6px;text-align:left}
+    th{color:var(--muted);font-weight:700}
+    .kpi{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px}
+    .kpi .box{padding:12px;border:1px solid var(--line);border-radius:14px;background:rgba(16,19,28,.55)}
+    .kpi .val{font-size:22px;font-weight:900;margin-top:6px}
+    .tag{font-size:12px;padding:3px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+    .toast{position:fixed;right:16px;bottom:16px;max-width:360px;z-index:9999}
+    .toast .t{background:rgba(20,24,35,.9);border:1px solid var(--line);border-radius:14px;padding:12px 12px;margin-top:8px;box-shadow:var(--shadow)}
+    .bad{color:#fecaca}
+    .ok{color:#bbf7d0}
+    .tiny{font-size:12px}
+    .hidden{display:none}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <div style="font-size:18px;font-weight:900">Sistema</div>
+        <span class="pill" id="ver">v1.0</span>
+      </div>
+      <div class="row">
+        <span class="tag" id="userTag">Deslogado</span>
+        <button class="btn" id="btnLogout">Sair</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card side">
+        <div class="row" style="justify-content:space-between">
+          <div style="font-weight:900">⚙️ Menu</div>
+          <span class="muted">Painel</span>
+        </div>
+        <div class="sep"></div>
+
+        <div class="nav" id="nav">
+          <a href="#inicio" data-view="inicio" class="active">Início <span class="muted">›</span></a>
+          <a href="#transferencia" data-view="transferencia">Transferência <span class="muted">Editar</span></a>
+          <a href="#zeramento" data-view="zeramento">Zeramento <span class="muted">Editar</span></a>
+          <a href="#requisicao" data-view="requisicao">Requisições <span class="muted">›</span></a>
+          <a href="#manual" data-view="manual">✍️ Manual <span class="muted">›</span></a>
+          <a href="#exs" data-view="exs">⚖️ Entrada x Saída <span class="muted">›</span></a>
+          <a href="#conferencia" data-view="conferencia">Conferência <span class="muted">›</span></a>
+          <a href="#producao" data-view="producao">Produção <span class="muted">Abrir</span></a>
+          <a href="#admin" data-view="admin">🛠️ Admin <span class="muted">Controle</span></a>
+        </div>
+
+        <div class="sep"></div>
+        <div class="muted tiny">
+          ✅ Tudo roda no navegador (offline).<br/>
+          ⚠️ Não é sistema “server”, é painel/apoio.
+        </div>
+      </div>
+
+      <div class="card main">
+        <!-- LOGIN -->
+        <div id="loginBox" class="hidden">
+          <h2>🔐 Login</h2>
+          <p class="muted">Entre para acessar o painel (usuário/senha ficam salvos no navegador).</p>
+          <div class="row">
+            <div style="flex:1">
+              <label class="muted">Usuário</label>
+              <input id="lgUser" placeholder="ex: gabriel" />
+            </div>
+            <div style="flex:1">
+              <label class="muted">Senha</label>
+              <input id="lgPass" type="password" placeholder="••••••••" />
+            </div>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <button class="btn primary" id="btnLogin">Entrar</button>
+            <button class="btn" id="btnCreate">Criar conta</button>
+            <button class="btn" id="btnRecover">Recuperar senha</button>
+          </div>
+
+          <div class="sep"></div>
+
+          <div id="createBox" class="hidden">
+            <h2>🧾 Criar conta</h2>
+            <div class="row">
+              <div style="flex:1"><label class="muted">Usuário</label><input id="crUser"></div>
+              <div style="flex:1"><label class="muted">Senha</label><input id="crPass" type="password"></div>
+              <div style="flex:1"><label class="muted">Email</label><input id="crEmail" type="email"></div>
+            </div>
+            <div class="row" style="margin-top:10px">
+              <button class="btn good" id="btnDoCreate">Cadastrar</button>
+              <button class="btn" onclick="toggleBox('createBox', false)">Voltar</button>
+            </div>
+          </div>
+
+          <div id="recoverBox" class="hidden">
+            <h2>📨 Recuperar senha</h2>
+            <div style="max-width:420px">
+              <label class="muted">Usuário</label>
+              <input id="rcUser" placeholder="usuário cadastrado">
+            </div>
+            <div class="row" style="margin-top:10px">
+              <button class="btn primary" id="btnDoRecover">Enviar</button>
+              <button class="btn" onclick="toggleBox('recoverBox', false)">Voltar</button>
+            </div>
+            <p class="muted tiny">Obs: aqui só mostra a dica porque é tudo local.</p>
+          </div>
+        </div>
+
+        <!-- VIEWS -->
+        <div id="views" class="hidden">
+
+          <!-- INÍCIO -->
+          <section data-section="inicio">
+            <h2>🏠 Início</h2>
+            <p class="muted">Resumo do “Entrada x Saída”.</p>
+
+            <div class="kpi">
+              <div class="box">
+                <div class="muted">Total (teórico)</div>
+                <div class="val" id="kTotal">—</div>
+              </div>
+              <div class="box">
+                <div class="muted">Real</div>
+                <div class="val" id="kReal">—</div>
+              </div>
+              <div class="box">
+                <div class="muted">Diferença</div>
+                <div class="val" id="kDiff">—</div>
+              </div>
+            </div>
+
+            <div class="row" style="margin-top:10px">
+              <button class="btn primary" onclick="goto('exs')">Abrir Entrada x Saída</button>
+              <button class="btn" onclick="refreshResumo()">Atualizar painel</button>
+              <button class="btn good" onclick="marcarHoje()">Marcar hoje (bateu)</button>
+            </div>
+
+            <div class="sep"></div>
+            <div class="muted">✅ toda vez que a diferença ficar 0, você pode marcar o dia como “bateu”.</div>
+            <div style="margin-top:10px" id="cal"></div>
+          </section>
+
+          <!-- TRANSFERÊNCIA -->
+          <section data-section="transferencia" class="hidden">
+            <h2>🔁 Transferência</h2>
+            <p class="muted">Cole seus dados (CSV/planilha copiada) e clique em Importação.</p>
+            <textarea id="txTransfer" placeholder="Código;Descrição;Chave5;Chave6;Chave7;QTD1;QTD2;QTD3;Local;Destino"></textarea>
+            <div class="row" style="margin-top:10px">
+              <button class="btn primary" onclick="importarTabela('transfer')">Importação</button>
+              <button class="btn" onclick="limparTabela('transfer')">Limpar</button>
+              <button class="btn" onclick="baixarTxt('transfer')">Baixar TXT</button>
+            </div>
+            <div id="tbTransfer"></div>
+          </section>
+
+          <!-- ZERAMENTO -->
+          <section data-section="zeramento" class="hidden">
+            <h2>🧹 Zeramento</h2>
+            <p class="muted">Cole e importe.</p>
+            <textarea id="txZero" placeholder="Código;Descrição;Chave5;Chave6;Chave7;QTD1;QTD2;QTD3;Local"></textarea>
+            <div class="row" style="margin-top:10px">
+              <button class="btn primary" onclick="importarTabela('zero')">Importação</button>
+              <button class="btn" onclick="limparTabela('zero')">Limpar</button>
+              <button class="btn" onclick="baixarTxt('zero')">Baixar TXT</button>
+            </div>
+            <div id="tbZero"></div>
+          </section>
+
+          <!-- REQUISIÇÃO -->
+          <section data-section="requisicao" class="hidden">
+            <h2>📌 Requisição</h2>
+            <p class="muted">Cole vários pedidos que o sistema separa pelo número do pedido e importe.</p>
+            <textarea id="txReq" placeholder="Pedido;Cliente;Código;Item;Chave5;Chave6;Chave7;Qtd"></textarea>
+            <div class="row" style="margin-top:10px">
+              <button class="btn primary" onclick="importarTabela('req')">Importação</button>
+              <button class="btn" onclick="limparTabela('req')">Limpar</button>
+              <button class="btn" onclick="baixarTxt('req')">Baixar TXT</button>
+            </div>
+            <div id="tbReq"></div>
+          </section>
+
+          <!-- MANUAL -->
+          <section data-section="manual" class="hidden">
+            <h2>✍️ Requisição Manual</h2>
+            <p class="muted">Cole ou digite a requisição manual.</p>
+            <textarea id="txManual" placeholder="Digite aqui..."></textarea>
+            <div class="row" style="margin-top:10px">
+              <button class="btn primary" onclick="salvarManual()">Importar RI</button>
+              <button class="btn" onclick="limparManual()">Limpar</button>
+            </div>
+            <div class="sep"></div>
+            <div class="muted tiny">Salvo no navegador.</div>
+          </section>
+
+          <!-- ENTRADA x SAÍDA -->
+          <section data-section="exs" class="hidden">
+            <h2>⚖️ Entrada x Saída</h2>
+            <p class="muted">Controle simples: Saldo inicial + Entrada - Saída + Ajuste.</p>
+
+            <div class="row">
+              <div style="flex:1">
+                <label class="muted">Saldo inicial do mês</label>
+                <input id="exSaldo" type="number" value="0">
+              </div>
+              <div style="flex:1">
+                <label class="muted">Entrada</label>
+                <input id="exEntrada" type="number" value="0">
+              </div>
+              <div style="flex:1">
+                <label class="muted">Saída</label>
+                <input id="exSaida" type="number" value="0">
+              </div>
+              <div style="flex:1">
+                <label class="muted">Ajuste</label>
+                <input id="exAjuste" type="number" value="0">
+              </div>
+            </div>
+
+            <div class="row" style="margin-top:10px">
+              <button class="btn good" onclick="calcEXS()">Aplicar</button>
+              <button class="btn primary" onclick="salvarEXS()">Salvar</button>
+              <button class="btn" onclick="limparEXS()">Limpar</button>
+            </div>
+
+            <div class="kpi">
+              <div class="box"><div class="muted">Total</div><div class="val" id="exTotal">0</div></div>
+              <div class="box"><div class="muted">Real</div><div class="val" id="exReal">0</div></div>
+              <div class="box"><div class="muted">Diferença</div><div class="val" id="exDiff">0</div></div>
+            </div>
+
+            <div class="sep"></div>
+            <div class="muted tiny">
+              ✅ Diferença 0 = bateu. Diferença positiva = entrou mais que o esperado. Diferença negativa = faltou entrada.
+            </div>
+          </section>
+
+          <!-- CONFERÊNCIA -->
+          <section data-section="conferencia" class="hidden">
+            <h2>✅ Conferência</h2>
+            <p class="muted">Cole a planilha do estoque; se estiver em local errado, marca em vermelho.</p>
+
+            <div class="row">
+              <div style="flex:1">
+                <label class="muted">Cadastro (Código → Local correto)</label>
+                <textarea id="txCad" placeholder="CODIGO;LOCAL"></textarea>
+              </div>
+              <div style="flex:1">
+                <label class="muted">Planilha informada (Código → Local informado)</label>
+                <textarea id="txInf" placeholder="CODIGO;LOCAL"></textarea>
+              </div>
+            </div>
+
+            <div class="row" style="margin-top:10px">
+              <button class="btn primary" onclick="analisarConferencia()">Analisar</button>
+              <button class="btn" onclick="limparConferencia()">Limpar</button>
+              <button class="btn" onclick="baixarErrosConferencia()">Baixar erros (TXT)</button>
+            </div>
+
+            <div id="tbConf"></div>
+          </section>
+
+          <!-- PRODUÇÃO -->
+          <section data-section="producao" class="hidden">
+            <h2>🏭 Entrada x Saída (Produção)</h2>
+            <p class="muted">Cole 2 planilhas: A) Entrada (componentes) | B) Saída (produto final). Esperado = Saída × 3.</p>
+
+            <div class="row">
+              <div style="flex:1">
+                <label class="muted">Planilha A — Entrada</label>
+                <textarea id="txProdA" placeholder="NOME;G1;G2;G3;QTD"></textarea>
+              </div>
+              <div style="flex:1">
+                <label class="muted">Planilha B — Saída</label>
+                <textarea id="txProdB" placeholder="NOME;G1;G2;G3;QTD"></textarea>
+              </div>
+            </div>
+
+            <div class="row" style="margin-top:10px">
+              <button class="btn primary" onclick="conferirProducao()">Conferir</button>
+              <button class="btn" onclick="limparProducao()">Limpar</button>
+            </div>
+
+            <div id="tbProd"></div>
+          </section>
+
+          <!-- ADMIN -->
+          <section data-section="admin" class="hidden">
+            <h2>🛠️ Admin</h2>
+            <p class="muted">Controles locais (email, permissões e manutenção).</p>
+
+            <div style="max-width:520px">
+              <label class="muted">Email (somente registro local)</label>
+              <input id="adEmail" type="email" placeholder="seuemail@exemplo.com">
+              <div class="row" style="margin-top:10px">
+                <button class="btn primary" onclick="salvarEmail()">Salvar Email</button>
+                <button class="btn" onclick="carregarEmail()">Recarregar</button>
+                <button class="btn warn" onclick="resetTudo()">Resetar tudo</button>
+              </div>
+            </div>
+
+            <div class="sep"></div>
+            <div class="muted tiny">
+              Se você quiser deixar isso “de verdade” (com login real e banco), dá pra ligar num Google Apps Script / Firebase depois.
+            </div>
+          </section>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+  // ---------- Utils ----------
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
+  const LS = (k, v) => v === undefined ? localStorage.getItem(k) : localStorage.setItem(k, v);
+  const LSJ = (k, v) => v === undefined ? JSON.parse(localStorage.getItem(k) || "null") : localStorage.setItem(k, JSON.stringify(v));
+
+  function toast(msg, ok=true){
+    const el = document.createElement("div");
+    el.className = "t";
+    el.innerHTML = `<div style="font-weight:900" class="${ok?'ok':'bad'}">${ok?'Aviso':'Erro'}</div>
+                    <div class="muted">${msg}</div>`;
+    $("#toast").appendChild(el);
+    setTimeout(()=>{el.remove()}, 4500);
+  }
+
+  function parseLines(text){
+    const lines = (text||"").trim().split(/\r?\n/).filter(Boolean);
+    return lines.map(l => l.split(/[;\t,]/).map(x => x.trim()));
+  }
+
+  function renderTable(headers, rows, opts={}){
+    const { highlightFn } = opts;
+    let html = `<table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>`;
+    for (const r of rows){
+      const klass = highlightFn ? (highlightFn(r) ? ' style="background:rgba(239,68,68,.12)"' : '') : '';
+      html += `<tr${klass}>${r.map(c=>`<td>${escapeHtml(String(c ?? ""))}</td>`).join("")}</tr>`;
+    }
+    html += `</tbody></table>`;
+    return html;
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, (m)=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]));
+  }
+
+  // ---------- Auth (local) ----------
+  function toggleBox(id, show){ $("#"+id).classList.toggle("hidden", !show); }
+  function getUsers(){ return LSJ("users") || []; }
+  function setUsers(u){ LSJ("users", u); }
+
+  function login(u,p){
+    const users = getUsers();
+    const found = users.find(x=>x.user===u && x.pass===p);
+    if(!found){ toast("Usuário ou senha inválidos.", false); return false; }
+    LS("session", u);
+    setupUI();
+    toast("Logado com sucesso.");
+    return true;
+  }
+
+  function logout(){
+    localStorage.removeItem("session");
+    setupUI();
+    toast("Saiu do sistema.");
+  }
+
+  function setupUI(){
+    const u = LS("session");
+    $("#userTag").textContent = u ? `👤 ${u}` : "Deslogado";
+    $("#btnLogout").disabled = !u;
+
+    $("#loginBox").classList.toggle("hidden", !!u);
+    $("#views").classList.toggle("hidden", !u);
+
+    if(u){ refreshResumo(); montarCalendario(); }
+  }
+
+  // ---------- Navigation ----------
+  function goto(view){
+    location.hash = "#"+view;
+    setView(view);
+  }
+
+  function setView(view){
+    $$("#nav a").forEach(a => a.classList.toggle("active", a.dataset.view===view));
+    $$("[data-section]").forEach(s => s.classList.toggle("hidden", s.dataset.section !== view));
+  }
+
+  window.addEventListener("hashchange", ()=>{
+    const v = (location.hash||"#inicio").replace("#","");
+    setView(v);
+  });
+
+  // ---------- Data actions ----------
+  function importarTabela(kind){
+    const map = {
+      transfer: { tx:"#txTransfer", out:"#tbTransfer", headers:["Código","Descrição","Chave5","Chave6","Chave7","QTD1","QTD2","QTD3","Local","Destino"] },
+      zero:     { tx:"#txZero", out:"#tbZero", headers:["Código","Descrição","Chave5","Chave6","Chave7","QTD1","QTD2","QTD3","Local"] },
+      req:      { tx:"#txReq", out:"#tbReq", headers:["Pedido","Cliente","Código","Item","Chave5","Chave6","Chave7","Qtd"] },
+    };
+    const cfg = map[kind];
+    const rows = parseLines($(cfg.tx).value);
+    if(!rows.length){ toast("Nada para importar.", false); return; }
+    LSJ("tab_"+kind, rows);
+    $(cfg.out).innerHTML = renderTable(cfg.headers, rows);
+    toast("Importação concluída.");
+  }
+
+  function limparTabela(kind){
+    LSJ("tab_"+kind, []);
+    if(kind==="transfer") $("#tbTransfer").innerHTML="";
+    if(kind==="zero") $("#tbZero").innerHTML="";
+    if(kind==="req") $("#tbReq").innerHTML="";
+    toast("Limpo.");
+  }
+
+  function baixarTxt(kind){
+    const rows = LSJ("tab_"+kind) || [];
+    const txt = rows.map(r=>r.join(";")).join("\n");
+    const blob = new Blob([txt], {type:"text/plain;charset=utf-8"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = kind + ".txt";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function salvarManual(){ LS("manual", $("#txManual").value || ""); toast("Requisição manual salva."); }
+  function limparManual(){ $("#txManual").value=""; localStorage.removeItem("manual"); toast("Manual limpo."); }
+
+  // Entrada x Saída
+  function calcEXS(){
+    const saldo = Number($("#exSaldo").value||0);
+    const ent = Number($("#exEntrada").value||0);
+    const sai = Number($("#exSaida").value||0);
+    const aj = Number($("#exAjuste").value||0);
+
+    const total = saldo + ent - sai + aj;
+    const real = Number(LS("exs_real")||0); // campo “real” pode vir de outro lançamento se você quiser
+    const diff = real - total;
+
+    $("#exTotal").textContent = total.toFixed(0);
+    $("#exReal").textContent = real.toFixed(0);
+    $("#exDiff").textContent = diff.toFixed(0);
+
+    // Salva resumo para a Home
+    LSJ("exsResumo", { total, real, diff });
+    refreshResumo();
+    toast("Cálculo aplicado.");
+  }
+
+  function salvarEXS(){
+    LSJ("exs", {
+      saldo: Number($("#exSaldo").value||0),
+      entrada: Number($("#exEntrada").value||0),
+      saida: Number($("#exSaida").value||0),
+      ajuste: Number($("#exAjuste").value||0),
+      real: Number(LS("exs_real")||0)
+    });
+    calcEXS();
+    toast("Salvo.");
+  }
+
+  function limparEXS(){
+    LSJ("exs", null);
+    $("#exSaldo").value=0; $("#exEntrada").value=0; $("#exSaida").value=0; $("#exAjuste").value=0;
+    LSJ("exsResumo", null);
+    refreshResumo();
+    toast("Zerado.");
+  }
+
+  function refreshResumo(){
+    const r = LSJ("exsResumo") || { total:"—", real:"—", diff:"—" };
+    $("#kTotal").textContent = (r.total ?? "—");
+    $("#kReal").textContent = (r.real ?? "—");
+    $("#kDiff").textContent = (r.diff ?? "—");
+  }
+
+  function marcarHoje(){
+    const d = new Date();
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    const map = LSJ("bateu") || {};
+    map[key] = !map[key];
+    LSJ("bateu", map);
+    montarCalendario();
+    toast(map[key] ? "Dia marcado como bateu." : "Marca removida.");
+  }
+
+  function montarCalendario(){
+    const d = new Date();
+    const y = d.getFullYear(), m = d.getMonth();
+    const first = new Date(y,m,1);
+    const last = new Date(y,m+1,0);
+    const bateu = LSJ("bateu") || {};
+
+    let html = `<div class="muted">📅 ${first.toLocaleString("pt-BR",{month:"long"})} / ${y}</div>`;
+    html += `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:8px">`;
+    const wd = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+    for(const w of wd) html += `<div class="muted tiny" style="text-align:center">${w}</div>`;
+
+    const pad = first.getDay();
+    for(let i=0;i<pad;i++) html += `<div></div>`;
+    for(let day=1;day<=last.getDate();day++){
+      const key = `${y}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+      const on = !!bateu[key];
+      html += `<button class="btn" style="padding:10px;border-radius:12px;${on?'background:rgba(34,197,94,.18);border-color:rgba(34,197,94,.35)':''}"
+               onclick="toggleDia('${key}')">${day}</button>`;
+    }
+    html += `</div>`;
+    $("#cal").innerHTML = html;
+  }
+
+  function toggleDia(key){
+    const map = LSJ("bateu") || {};
+    map[key] = !map[key];
+    LSJ("bateu", map);
+    montarCalendario();
+  }
+
+  // Conferência
+  function analisarConferencia(){
+    const cad = parseLines($("#txCad").value);
+    const inf = parseLines($("#txInf").value);
+
+    if(!cad.length || !inf.length){ toast("Cole o cadastro e a planilha informada.", false); return; }
+
+    const map = new Map();
+    for(const r of cad){
+      const cod = r[0]; const local = r[1];
+      if(cod) map.set(cod, local || "");
+    }
+
+    const rows = [];
+    const erros = [];
+    for(const r of inf){
+      const cod = r[0]; const locInf = r[1] || "";
+      const locCad = map.get(cod) || "";
+      const ok = (locCad && locCad === locInf);
+      rows.push([cod, locInf, locCad, ok ? "OK" : "ERRO"]);
+      if(!ok) erros.push([cod, locInf, locCad, "LOCAL DIVERGENTE"]);
+    }
+
+    LSJ("confErros", erros);
+    $("#tbConf").innerHTML = renderTable(["Código","Local informado","Local cadastrado","Status"], rows, {
+      highlightFn: (r)=>r[3]==="ERRO"
+    });
+    toast(`Análise concluída. Erros: ${erros.length}`);
+  }
+
+  function limparConferencia(){
+    $("#txCad").value=""; $("#txInf").value=""; $("#tbConf").innerHTML="";
+    LSJ("confErros", []);
+    toast("Limpo.");
+  }
+
+  function baixarErrosConferencia(){
+    const erros = LSJ("confErros") || [];
+    if(!erros.length){ toast("Sem erros para baixar.", false); return; }
+    const txt = erros.map(r=>r.join(";")).join("\n");
+    const blob = new Blob([txt], {type:"text/plain;charset=utf-8"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "erros_conferencia.txt";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  // Produção: esperado = saída * 3
+  function conferirProducao(){
+    const A = parseLines($("#txProdA").value);
+    const B = parseLines($("#txProdB").value);
+    if(!A.length || !B.length){ toast("Cole as duas planilhas.", false); return; }
+
+    const key = (r)=> [r[0],r[1],r[2],r[3]].join("|"); // nome+grades
+    const entrada = new Map();
+    for(const r of A){
+      const k = key(r);
+      const qtd = Number(r[4]||0);
+      entrada.set(k, (entrada.get(k)||0) + qtd);
+    }
+    const saida = new Map();
+    for(const r of B){
+      const k = key(r);
+      const qtd = Number(r[4]||0);
+      saida.set(k, (saida.get(k)||0) + qtd);
+    }
+
+    const keys = new Set([...entrada.keys(), ...saida.keys()]);
+    const rows = [];
+    const erros = [];
+    for(const k of keys){
+      const [nome,g1,g2,g3] = k.split("|");
+      const ent = entrada.get(k)||0;
+      const sai = saida.get(k)||0;
+      const esperado = sai * 3;
+      const diff = ent - esperado;
+      rows.push([nome,g1,g2,g3, ent, esperado, diff]);
+      if(diff !== 0) erros.push([nome,g1,g2,g3, ent, esperado, diff]);
+    }
+
+    $("#tbProd").innerHTML = renderTable(
+      ["Nome","Grade 1","Grade 2","Grade 3","Entrada","Esperado (Saída×3)","Diferença"],
+      rows,
+      { highlightFn: (r)=>Number(r[6])!==0 }
+    );
+    toast(`Conferência concluída. Itens divergentes: ${erros.length}`);
+  }
+
+  function limparProducao(){
+    $("#txProdA").value=""; $("#txProdB").value=""; $("#tbProd").innerHTML="";
+    toast("Limpo.");
+  }
+
+  // Admin
+  function salvarEmail(){ LS("email", $("#adEmail").value||""); toast("Email salvo."); }
+  function carregarEmail(){ $("#adEmail").value = LS("email")||""; toast("Email carregado."); }
+  function resetTudo(){
+    if(!confirm("Tem certeza? Isso apaga tudo salvo no navegador.")) return;
+    localStorage.clear();
+    setupUI();
+  }
+
+  // ---------- Init ----------
+  document.addEventListener("DOMContentLoaded", ()=>{
+    // Puxar dados salvos
+    $("#txManual").value = LS("manual")||"";
+    const exs = LSJ("exs");
+    if(exs){
+      $("#exSaldo").value = exs.saldo ?? 0;
+      $("#exEntrada").value = exs.entrada ?? 0;
+      $("#exSaida").value = exs.saida ?? 0;
+      $("#exAjuste").value = exs.ajuste ?? 0;
+      calcEXS();
+    }
+
+    // Login UI
+    $("#btnLogin").onclick = ()=> login($("#lgUser").value.trim(), $("#lgPass").value);
+    $("#btnLogout").onclick = logout;
+    $("#btnCreate").onclick = ()=> toggleBox("createBox", true);
+    $("#btnRecover").onclick = ()=> toggleBox("recoverBox", true);
+
+    $("#btnDoCreate").onclick = ()=>{
+      const user = $("#crUser").value.trim();
+      const pass = $("#crPass").value;
+      const email = $("#crEmail").value.trim();
+      if(!user || !pass){ toast("Preencha usuário e senha.", false); return; }
+      const users = getUsers();
+      if(users.some(x=>x.user===user)){ toast("Usuário já existe.", false); return; }
+      users.push({user, pass, email});
+      setUsers(users);
+      toast("Conta criada. Você já pode entrar.");
+      toggleBox("createBox", false);
+    };
+
+    $("#btnDoRecover").onclick = ()=>{
+      const user = $("#rcUser").value.trim();
+      const u = getUsers().find(x=>x.user===user);
+      if(!u){ toast("Usuário não encontrado.", false); return; }
+      toast(`Conta encontrada. Email registrado: ${u.email || "(sem email)"} (senha não é enviada aqui).`);
+      toggleBox("recoverBox", false);
+    };
+
+    setupUI();
+    const v = (location.hash||"#inicio").replace("#","");
+    setView(v);
+
+    // Register SW
+    if("serviceWorker" in navigator){
+      navigator.serviceWorker.register("./sw.js")
+        .then(()=>console.log("SW ok"))
+        .catch(()=>console.log("SW falhou"));
+    }
+  });
+</script>
+</body>
+</html>

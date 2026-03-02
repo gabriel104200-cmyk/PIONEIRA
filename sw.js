@@ -1,4 +1,4 @@
-const CACHE = "pioneira-pwa-v2";
+const CACHE = "pioneira-pwa-v99";
 
 const ASSETS = [
   "./",

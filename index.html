@@ -547,7 +547,7 @@
       const header = `R|${data}|1|1|${diaMenos1}|${dia}|${pedido}  -  ${cliente}|${pedido}|0|0`;
 
       const itens = pack.itens.map(it =>
-        `I|P|${it.codigo}|${it.item}|${it.ch5}|${it.ch6}|${it.ch7}|${it.qtd}|${it.local}`
+      `I|P|${it.codigo}|${it.item}|${it.ch5}|${it.ch6}|${it.ch7}|${it.qtd}|3|${it.local}`
       );
 
       const txt = [header, ...itens].join("\r\n") + "\r\n";

@@ -479,70 +479,57 @@
     toast("Limpo.");
   }
 
- function baixarTxt(kind){
+function baixarTxt(kind){
   const rows = LSJ("tab_"+kind) || [];
-  if(!rows.length){
-    toast("Nada para baixar.", false);
-    return;
-  }
+  if(!rows.length){ toast("Nada para baixar.", false); return; }
 
-  // ===============================
-  // REQUISIÇÃO - FORMATO ANTIGO
-  // ===============================
+  // ============================
+  // REQUISIÇÃO (formato antigo)
+  // ============================
   if(kind === "req"){
-
     const departamento = "27";
 
     // requisitante salvo
     let requisitante = LS("req_requisitante");
     if(!requisitante){
       requisitante = prompt("Informe seu REQUISITANTE (ex: 26):");
-      if(!requisitante){
-        toast("Requisitante não informado.", false);
-        return;
-      }
-      LS("req_requisitante", requisitante.trim());
+      if(!requisitante){ toast("Requisitante não informado.", false); return; }
+      requisitante = requisitante.trim();
+      LS("req_requisitante", requisitante);
+    } else {
+      requisitante = requisitante.trim();
     }
-    requisitante = requisitante.trim();
 
-    // data atual
+    // data atual (dd/mm/aaaa)
     const hoje = new Date();
     const dd = String(hoje.getDate()).padStart(2,"0");
     const mm = String(hoje.getMonth()+1).padStart(2,"0");
     const yyyy = hoje.getFullYear();
     const data = `${dd}/${mm}/${yyyy}`;
 
-    const pedido = (rows[0][0] || "").trim();
+    // usa o primeiro registro pra puxar pedido/cliente
+    const pedido  = (rows[0][0] || "").trim();
     const cliente = (rows[0][1] || "").trim();
 
-    // ----- LINHA R -----
+    // linha R
     const linhaR = [
-      "R",
-      data,
-      "1",
-      "1",
-      requisitante,
-      departamento,
+      "R", data, "1", "1", requisitante, departamento,
       `${pedido}  -  ${cliente}`,
-      pedido,
-      "0",
-      "0"
+      pedido, "0", "0"
     ].join("|");
 
-    // ----- ITENS -----
+    // locais aprendidos por CÓDIGO
     const locais = LSJ("req_locais") || {};
     const itens = [];
 
     for(const r of rows){
-
       const codigo = (r[2] || "").trim();
       const item   = (r[3] || "").trim();
       const chave5 = (r[4] || "").trim();
       const chave6 = (r[5] || "").trim();
+      const qtd    = (r[7] || "").trim(); // Qtd é a coluna 8 no seu layout
 
-      const qtd = (r[7] ?? r[6] ?? "").toString().trim();
-
-      // local aprendido
+      // pergunta o local só se não tiver salvo
       let local = (locais[codigo] || "").trim();
       if(!local){
         local = (prompt(`Local de saída do código ${codigo}:`) || "").trim();
@@ -552,25 +539,16 @@
         }
       }
 
-      itens.push([
-        "I",
-        "P",
-        codigo,
-        item,
-        chave5,
-        chave6,
-        qtd,
-        "3",
-        local
-      ].join("|"));
+      // ✅ Sem campo vazio no meio (evita "||")
+      // ✅ Tipo de necessidade sempre "3"
+      itens.push(["I","P",codigo,item,chave5,chave6,qtd,"3",local].join("|"));
     }
 
-    const txtFinal = [linhaR, ...itens].join("\r\n") + "\r\n";
-
-    const blob = new Blob([txtFinal], {type:"text/plain;charset=utf-8"});
+    const txt = [linhaR, ...itens].join("\r\n") + "\r\n";
+    const blob = new Blob([txt], {type:"text/plain;charset=utf-8"});
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `REQ_${pedido}.txt`;
+    a.download = `REQ_${pedido || "requisicao"}.txt`;
     a.click();
     URL.revokeObjectURL(a.href);
 
@@ -578,11 +556,10 @@
     return;
   }
 
-  // ===============================
-  // OUTROS TIPOS (simples)
-  // ===============================
+  // ============================
+  // OUTROS TIPOS (simples ; )
+  // ============================
   const txt = rows.map(r => r.join(";")).join("\r\n") + "\r\n";
-
   const blob = new Blob([txt], {type:"text/plain;charset=utf-8"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);

@@ -569,8 +569,6 @@
   URL.revokeObjectURL(a.href);
 }
 
-  }
-
   function salvarManual(){ LS("manual", $("#txManual").value || ""); toast("Requisição manual salva."); }
   function limparManual(){ $("#txManual").value=""; localStorage.removeItem("manual"); toast("Manual limpo."); }
 

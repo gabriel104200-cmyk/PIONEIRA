@@ -9,7 +9,7 @@
   <script>
     // Se seu site for: https://SEUUSUARIO.github.io/Pioneira/
     // então BASE_PATH = "/Pioneira"
-    const BASE_PATH = "/Pioneira";
+    const BASE_PATH = "/PIONEIRA";
   </script>
 
   <link rel="manifest" href="./manifest.json">
@@ -480,69 +480,83 @@
   }
 
  function baixarTxt(kind){
+  function baixarTxt(kind){
   const rows = LSJ("tab_"+kind) || [];
   if(!rows.length){ toast("Nada para baixar.", false); return; }
 
-  // ✅ Requisição no formato antigo (R|... e I|P|...) + tipo necessidade fixo = 3
-// ===== REQUISIÇÃO (formato antigo) =====
-const departamento = "27";
+  // ===== REQUISIÇÃO (formato antigo) =====
+  if(kind === "req"){
+    const departamento = "27"; // sempre 27
 
-// requisitante salvo
-let requisitante = LS("req_requisitante");
-if(!requisitante){
-  requisitante = prompt("Informe seu REQUISITANTE (ex: 26):");
-  if(!requisitante){ toast("Requisitante não informado.", false); return; }
-  LS("req_requisitante", requisitante.trim());
-}
-requisitante = requisitante.trim();
+    // requisitante salvo
+    let requisitante = LS("req_requisitante");
+    if(!requisitante){
+      requisitante = prompt("Informe seu REQUISITANTE (ex: 26):");
+      if(!requisitante){ toast("Requisitante não informado.", false); return; }
+      LS("req_requisitante", requisitante.trim());
+    }
+    requisitante = requisitante.trim();
 
-// pega as linhas importadas
-const rows = LSJ("tab_req") || [];
-if(!rows.length){ toast("Nada para baixar.", false); return; }
+    // data
+    const hoje = new Date();
+    const dd = String(hoje.getDate()).padStart(2,"0");
+    const mm = String(hoje.getMonth()+1).padStart(2,"0");
+    const yyyy = hoje.getFullYear();
+    const data = `${dd}/${mm}/${yyyy}`;
 
-// monta CABEÇALHO (R|)
-const hoje = new Date();
-const dd = String(hoje.getDate()).padStart(2,"0");
-const mm = String(hoje.getMonth()+1).padStart(2,"0");
-const yyyy = hoje.getFullYear();
-const data = `${dd}/${mm}/${yyyy}`;
+    // pedido/cliente do primeiro registro
+    const pedido = (rows[0][0] || "").trim();
+    const cliente = (rows[0][1] || "").trim();
 
-// usa o primeiro registro pra puxar pedido/cliente
-const pedido = (rows[0][0] || "").trim();
-const cliente = (rows[0][1] || "").trim();
+    // linha R
+    const linhaR = [
+      "R", data, "1", "1", requisitante, departamento,
+      `${pedido}  -  ${cliente}`,
+      pedido, "0", "0"
+    ].join("|");
 
-const linhaR = [
-  "R", data, "1", "1", requisitante, departamento,
-  `${pedido}  -  ${cliente}`,
-  pedido, "0", "0"
-].join("|");
+    // locais aprendidos por CÓDIGO
+    const locais = LSJ("req_locais") || {};
 
-// monta ITENS (I|)
-const itens = [];
-for(const r of rows){
-  const codigo = (r[2] || "").trim();
-  const item   = (r[3] || "").trim();
-  const chave5 = (r[4] || "").trim();
-  const chave6 = (r[5] || "").trim();
-  const qtd    = (r[7] || "").trim();
+    // linhas I
+    const itens = [];
+    for(const r of rows){
+      const codigo = (r[2] || "").trim();
+      const item   = (r[3] || "").trim();
+      const chave5 = (r[4] || "").trim();
+      const chave6 = (r[5] || "").trim();
 
-  // local aprendido (se você já está usando isso)
-  const locais = LSJ("req_locais") || {};
-  let local = locais[codigo];
-  if(!local){
-    local = prompt(`Local de saída do código ${codigo}:`) || "";
-    local = local.trim();
-    if(local) { locais[codigo] = local; LSJ("req_locais", locais); }
+      // ✅ QTD: se vier faltando a última coluna, usa a penúltima
+      const qtd = ( (r[7] ?? "").toString().trim() ) || ( (r[6] ?? "").toString().trim() );
+
+      // local (pergunta 1x e salva)
+      let local = (locais[codigo] || "").trim();
+      if(!local){
+        local = (prompt(`Local de saída do código ${codigo}:`) || "").trim();
+        if(local){
+          locais[codigo] = local;
+          LSJ("req_locais", locais);
+        }
+      }
+
+      // ✅ FORMATO CORRETO: ...|QTD|3|LOCAL  (sem campo vazio no meio)
+      itens.push(["I","P",codigo,item,chave5,chave6,qtd,"3",local].join("|"));
+    }
+
+    const txt = [linhaR, ...itens].join("\r\n") + "\r\n";
+
+    const blob = new Blob([txt], {type:"text/plain;charset=utf-8"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `REQ_${pedido}.txt`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+
+    toast("TXT da Requisição gerado no formato antigo.");
+    return;
   }
 
-  // ✅ aqui NÃO pode ter "" no meio, senão vira || no TXT
-  itens.push(["I","P",codigo,item,chave5,chave6,qtd,"3",local].join("|"));
-}
-
-const txt = [linhaR, ...itens].join("\r\n") + "\r\n";
-  }
-
-  // outros tipos continuam simples
+  // ===== OUTROS TIPOS (simples) =====
   const txt = rows.map(r=>r.join(";")).join("\r\n") + "\r\n";
   const blob = new Blob([txt], {type:"text/plain;charset=utf-8"});
   const a = document.createElement("a");
@@ -551,7 +565,6 @@ const txt = [linhaR, ...itens].join("\r\n") + "\r\n";
   a.click();
   URL.revokeObjectURL(a.href);
 }
-
   function salvarManual(){ LS("manual", $("#txManual").value || ""); toast("Requisição manual salva."); }
   function limparManual(){ $("#txManual").value=""; localStorage.removeItem("manual"); toast("Manual limpo."); }
 

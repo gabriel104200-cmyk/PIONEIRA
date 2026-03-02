@@ -484,79 +484,62 @@
   if(!rows.length){ toast("Nada para baixar.", false); return; }
 
   // ✅ Requisição no formato antigo (R|... e I|P|...) + tipo necessidade fixo = 3
-  if(kind === "req"){
+// ===== REQUISIÇÃO (formato antigo) =====
+const departamento = "27";
 
-    // requisitante salvo
-    let requisitante = LS("req_requisitante");
-    if(!requisitante){
-      requisitante = prompt("Informe seu REQUISITANTE (ex: 26):");
-      if(!requisitante) { toast("Requisitante não informado.", false); return; }
-      LS("req_requisitante", requisitante.trim());
-    }
+// requisitante salvo
+let requisitante = LS("req_requisitante");
+if(!requisitante){
+  requisitante = prompt("Informe seu REQUISITANTE (ex: 26):");
+  if(!requisitante){ toast("Requisitante não informado.", false); return; }
+  LS("req_requisitante", requisitante.trim());
+}
+requisitante = requisitante.trim();
 
-    // locais aprendidos por CÓDIGO
-    const locais = LSJ("req_locais") || {};
+// pega as linhas importadas
+const rows = LSJ("tab_req") || [];
+if(!rows.length){ toast("Nada para baixar.", false); return; }
 
-    // agrupar por pedido
-    const byPedido = new Map();
-    for(const r of rows){
-      const pedido = (r[0] || "").trim();
-      const cliente = (r[1] || "").trim();
-      if(!pedido) continue;
+// monta CABEÇALHO (R|)
+const hoje = new Date();
+const dd = String(hoje.getDate()).padStart(2,"0");
+const mm = String(hoje.getMonth()+1).padStart(2,"0");
+const yyyy = hoje.getFullYear();
+const data = `${dd}/${mm}/${yyyy}`;
 
-      if(!byPedido.has(pedido)) byPedido.set(pedido, {cliente, itens: []});
+// usa o primeiro registro pra puxar pedido/cliente
+const pedido = (rows[0][0] || "").trim();
+const cliente = (rows[0][1] || "").trim();
 
-      const codigo = (r[2] || "").trim();
-      const item   = (r[3] || "").trim();
-      const ch5    = (r[4] || "").trim();
-      const ch6    = (r[5] || "").trim();
-      const ch7    = (r[6] || "").trim();
-      const qtd    = (r[7] || "").trim();
+const linhaR = [
+  "R", data, "1", "1", requisitante, departamento,
+  `${pedido}  -  ${cliente}`,
+  pedido, "0", "0"
+].join("|");
 
-      let local = (r[8] || "").trim();
-      if(!local) local = locais[codigo];
-      if(!local){
-        local = prompt(`Informe o LOCAL DE SAÍDA para o código ${codigo} (ex: 1561):`);
-        if(!local) { toast(`Local não informado para ${codigo}.`, false); return; }
-        locais[codigo] = local.trim();
-      }
+// monta ITENS (I|)
+const itens = [];
+for(const r of rows){
+  const codigo = (r[2] || "").trim();
+  const item   = (r[3] || "").trim();
+  const chave5 = (r[4] || "").trim();
+  const chave6 = (r[5] || "").trim();
+  const qtd    = (r[7] || "").trim();
 
-      byPedido.get(pedido).itens.push({codigo,item,ch5,ch6,ch7,qtd,local});
-    }
+  // local aprendido (se você já está usando isso)
+  const locais = LSJ("req_locais") || {};
+  let local = locais[codigo];
+  if(!local){
+    local = prompt(`Local de saída do código ${codigo}:`) || "";
+    local = local.trim();
+    if(local) { locais[codigo] = local; LSJ("req_locais", locais); }
+  }
 
-    LSJ("req_locais", locais);
+  // ✅ aqui NÃO pode ter "" no meio, senão vira || no TXT
+  itens.push(["I","P",codigo,item,chave5,chave6,qtd,"3",local].join("|"));
+}
 
-    // data
-    const d = new Date();
-    const dd = String(d.getDate()).padStart(2,"0");
-    const mm = String(d.getMonth()+1).padStart(2,"0");
-    const yyyy = d.getFullYear();
-    const data = `${dd}/${mm}/${yyyy}`;
-
-    const dia = d.getDate();
-    const diaMenos1 = Math.max(1, dia - 1);
-
-    for(const [pedido, pack] of byPedido.entries()){
-      const cliente = pack.cliente || "";
-
-      const header = `R|${data}|1|1|${diaMenos1}|${dia}|${pedido}  -  ${cliente}|${pedido}|0|0`;
-
-      const itens = pack.itens.map(it =>
-        `I|P|${it.codigo}|${it.item}|${it.ch5}|${it.ch6}|${it.ch7}|${it.qtd}|3|${it.local}`
-      );
-
-      const txt = [header, ...itens].join("\r\n") + "\r\n";
-
-      const blob = new Blob([txt], {type:"text/plain;charset=utf-8"});
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `REQ_${pedido}.txt`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    }
-
-    toast("TXT da Requisição gerado no formato antigo.");
-    return;
+const txt = [linhaR, ...itens].join("\r\n") + "\r\n";
   }
 
   // outros tipos continuam simples

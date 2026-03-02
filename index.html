@@ -483,10 +483,10 @@
   const rows = LSJ("tab_"+kind) || [];
   if(!rows.length){ toast("Nada para baixar.", false); return; }
 
-  // ✅ Requisição no formato antigo + requisitante + locais salvos
+  // ✅ Requisição no formato antigo (R|... e I|P|...) + tipo necessidade fixo = 3
   if(kind === "req"){
 
-    // 1) Pega requisitante (ex.: 26)
+    // requisitante salvo
     let requisitante = LS("req_requisitante");
     if(!requisitante){
       requisitante = prompt("Informe seu REQUISITANTE (ex: 26):");
@@ -494,10 +494,10 @@
       LS("req_requisitante", requisitante.trim());
     }
 
-    // 2) Mapa de locais aprendidos por CÓDIGO
-    const locais = LSJ("req_locais") || {}; // { "1202": "2298", ... }
+    // locais aprendidos por CÓDIGO
+    const locais = LSJ("req_locais") || {};
 
-    // 3) Agrupa por pedido (1 arquivo por pedido)
+    // agrupar por pedido
     const byPedido = new Map();
     for(const r of rows){
       const pedido = (r[0] || "").trim();
@@ -513,13 +513,10 @@
       const ch7    = (r[6] || "").trim();
       const qtd    = (r[7] || "").trim();
 
-      // 4) Local: tenta pegar salvo; se não tiver, pergunta e salva
       let local = (r[8] || "").trim();
+      if(!local) local = locais[codigo];
       if(!local){
-        local = locais[codigo];
-      }
-      if(!local){
-        local = prompt(`Informe o LOCAL DE SAÍDA para o código ${codigo} (ex: 2298):`);
+        local = prompt(`Informe o LOCAL DE SAÍDA para o código ${codigo} (ex: 1561):`);
         if(!local) { toast(`Local não informado para ${codigo}.`, false); return; }
         locais[codigo] = local.trim();
       }
@@ -527,27 +524,25 @@
       byPedido.get(pedido).itens.push({codigo,item,ch5,ch6,ch7,qtd,local});
     }
 
-    // salva os locais aprendidos
     LSJ("req_locais", locais);
 
-    // Data DD/MM/AAAA
+    // data
     const d = new Date();
     const dd = String(d.getDate()).padStart(2,"0");
     const mm = String(d.getMonth()+1).padStart(2,"0");
     const yyyy = d.getFullYear();
     const data = `${dd}/${mm}/${yyyy}`;
 
-    // no antigo: dia-1 | dia (ex.: 26|27)
     const dia = d.getDate();
     const diaMenos1 = Math.max(1, dia - 1);
 
     for(const [pedido, pack] of byPedido.entries()){
       const cliente = pack.cliente || "";
-      // ✅ Ajuste: coloca requisitante no campo certo
+
       const header = `R|${data}|1|1|${diaMenos1}|${dia}|${pedido}  -  ${cliente}|${pedido}|0|0`;
 
       const itens = pack.itens.map(it =>
-      `I|P|${it.codigo}|${it.item}|${it.ch5}|${it.ch6}|${it.ch7}|${it.qtd}|3|${it.local}`
+        `I|P|${it.codigo}|${it.item}|${it.ch5}|${it.ch6}|${it.ch7}|${it.qtd}|3|${it.local}`
       );
 
       const txt = [header, ...itens].join("\r\n") + "\r\n";
@@ -564,7 +559,7 @@
     return;
   }
 
-  // Outros tipos (mantém como está)
+  // outros tipos continuam simples
   const txt = rows.map(r=>r.join(";")).join("\r\n") + "\r\n";
   const blob = new Blob([txt], {type:"text/plain;charset=utf-8"});
   const a = document.createElement("a");
@@ -572,6 +567,7 @@
   a.download = kind + ".txt";
   a.click();
   URL.revokeObjectURL(a.href);
+}
 
   }
 

@@ -608,36 +608,61 @@ if (kind === "zero") {
   }
 
   // ===== Zeramento: aprende aos poucos (pergunta só o que não conhece) =====
-  function zeroMapToken(token){
-    const t = (token ?? "").toString().trim();
-    if (!t) return ""; // permite grade vazia
+ function zeroMapToken(token){
+  const t = (token ?? "").toString().trim();
+  if (!t) return ""; // permite vazio
 
-    const map = LSJ("zero_map") || {};
-    const key = t.toLowerCase();
+  const map = LSJ("zero_map") || {};
+  const key = t.toLowerCase();
 
-    // se já conhece, não pergunta
-    if (map[key]) return map[key];
+  // atalhos fixos (ajuste aqui como seu ERP espera)
+  const aliases = {
+    "ros": "ROSA",
+    "fume": "FUMÊ",   // se o ERP não aceitar acento, troque por "FUME"
+    "lar": "LAR",
+    "pre": "PRE",
+  };
 
-    // se já parece "código pronto" (M, F, PRE, AMO, GG, XGG, 11, 41 etc), salva como ele mesmo
-    const isNumber = /^[0-9]+$/.test(t);
-    const isShortCode = /^[A-Z0-9]{1,6}$/.test(t);
-    if (isNumber || isShortCode){
-      map[key] = t;
-      LSJ("zero_map", map);
-      return t;
-    }
+  // se já existe no mapa, retorna
+  if (map[key]) return map[key];
 
-    // senão pergunta e salva
-    const resp = (prompt(`ZERAMENTO: Como "${t}" deve sair no TXT? (ex: M / F / PRE / AMO / GG / XGG / 11)`) || "").trim();
-    if(!resp){
-      toast(`Sem cadastro para "${t}". Vou usar como veio.`, false);
-      return t;
-    }
-    map[key] = resp;
+  // aplica alias automático
+  if (aliases[key]) {
+    map[key] = aliases[key];
     LSJ("zero_map", map);
-    return resp;
+    return map[key];
   }
 
+  // números: aceita sem perguntar
+  const isNumber = /^[0-9]+$/.test(t);
+  if (isNumber){
+    map[key] = t;
+    LSJ("zero_map", map);
+    return t;
+  }
+
+  // só aceita automático se for um "código curto conhecido"
+  // (tamanhos / códigos que normalmente já são padrão)
+  const knownShort = /^(P|M|G|GG|XG|XGG|XXG|PP|PM|46|48|50|52|54|56|58|60|41|42|43|44|45|PRE|AMO|MASC|FEM)$/i;
+  if (knownShort.test(t)){
+    map[key] = t.toUpperCase();
+    LSJ("zero_map", map);
+    return map[key];
+  }
+
+  // caso contrário, PERGUNTA e grava
+  const resp = (prompt(`ZERAMENTO: Como "${t}" deve sair no TXT?`) || "").trim();
+  if(!resp){
+    toast(`Sem cadastro para "${t}". Vou usar como veio.`, false);
+    map[key] = t;
+    LSJ("zero_map", map);
+    return t;
+  }
+
+  map[key] = resp;
+  LSJ("zero_map", map);
+  return resp;
+}
   function toNumberBR(x){
     const s = (x ?? "").toString().trim().replace(/\./g,"").replace(",",".");
     const n = Number(s);

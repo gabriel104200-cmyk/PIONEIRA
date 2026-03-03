@@ -623,43 +623,57 @@ if (kind === "zero") {
     return (s || "").toString().trim().toLowerCase();
   }
 
-// ===== Zeramento: aprende aos poucos (pergunta só o que não conhece) =====
-function zeroMapToken(token, label){
-  const t = (token ?? "").toString().trim();
-  if (!t) return ""; // permite grade vazia
+// ===== ZERAMENTO (formato M1/M3 | E/S | data | codigo | g1 | g2 | g3 | local | qtd | vl_unit | vl_total | 1905/5906) =====
+if (kind === "zero") {
 
-  // Mapa salvo do zeramento
-  const map = LSJ("zero_map") || {};
+  // filial salva
+  let filial = LS("zero_filial");
+  if (!filial) {
+    filial = (prompt("Filial do arquivo? Digite 1 ou 3 (vai virar M1 ou M3):", "1") || "").trim();
+    if (!filial) { toast("Filial não informada.", false); return; }
+    if (!["1","3"].includes(filial)) { toast("Filial inválida. Use 1 ou 3.", false); return; }
+    LS("zero_filial", filial);
+  }
 
-  // chave normalizada (pra "Preto" e "preto" serem o mesmo)
-  const key = t.toLowerCase();
+  // preço unitário salvo (padrão 0,01)
+  let precoUnit = LS("zero_preco_unit");
+  if (!precoUnit) {
+    precoUnit = (prompt("Preço unitário para cálculo (ex: 0,01):", "0,01") || "0,01").trim();
+    if (!precoUnit) precoUnit = "0,01";
+    LS("zero_preco_unit", precoUnit);
+  }
 
-  // Se já existe cadastro, usa e não pergunta
-  if (map[key]) return map[key];
+  // ===== Zeramento: aprende aos poucos (pergunta só o que não conhece) =====
+  function zeroMapToken(token){
+    const t = (token ?? "").toString().trim();
+    if (!t) return ""; // permite grade vazia
 
-  // Se já parece um código final (tipo: M, F, PRE, AMO, GG, XGG, 11, 41, 492 etc),
-  // não pergunta e já salva como ele mesmo (pra não ficar perguntando toda hora).
-  const isNumber = /^[0-9]+$/.test(t);
-  const isShortCode = /^[A-Z0-9]{1,6}$/.test(t);
-  if (isNumber || isShortCode){
-    map[key] = t;
+    const map = LSJ("zero_map") || {};
+    const key = t.toLowerCase();
+
+    // se já conhece, não pergunta
+    if (map[key]) return map[key];
+
+    // se já parece "código pronto" (M, F, PRE, AMO, GG, XGG, 11, 41 etc), salva como ele mesmo
+    const isNumber = /^[0-9]+$/.test(t);
+    const isShortCode = /^[A-Z0-9]{1,6}$/.test(t);
+    if (isNumber || isShortCode){
+      map[key] = t;
+      LSJ("zero_map", map);
+      return t;
+    }
+
+    // senão pergunta e salva
+    const resp = (prompt(`ZERAMENTO: Como "${t}" deve sair no TXT? (ex: M / F / PRE / AMO / GG / XGG / 11)`) || "").trim();
+    if(!resp){
+      toast(`Sem cadastro para "${t}". Vou usar como veio.`, false);
+      return t;
+    }
+    map[key] = resp;
     LSJ("zero_map", map);
-    return t;
+    return resp;
   }
 
-  // Se não conhece e não é "código pronto", pergunta e salva
-  const resp = (prompt(`ZERAMENTO: Como "${t}" deve sair no TXT? (ex: M / F / PRE / AMO / GG / XGG / 11)`) || "").trim();
-
-  if(!resp){
-    // Se não responder, usa como veio (mas não salva, pra perguntar na próxima)
-    toast(`Sem cadastro para "${t}". Vou usar como veio.`, false);
-    return t;
-  }
-
-  map[key] = resp;
-  LSJ("zero_map", map);
-  return resp;
-}
   function toNumberBR(x){
     const s = (x ?? "").toString().trim().replace(/\./g,"").replace(",",".");
     const n = Number(s);
@@ -667,7 +681,6 @@ function zeroMapToken(token, label){
   }
 
   function fmtBR(n){
-    // 2 casas com vírgula
     return n.toFixed(2).replace(".", ",");
   }
 
@@ -678,24 +691,19 @@ function zeroMapToken(token, label){
   const data = `${dd}/${mm}/${yyyy}`;
 
   const precoN = toNumberBR(precoUnit);
-
   const saidaFinal = "5906";
   const entradaFinal = "1905";
   const prefixoFilial = `M${filial}`;
 
   const out = [];
 
-  // lê as linhas IMPORTADAS (tab_zero)
   const rowsZero = LSJ("tab_zero") || [];
   if (!rowsZero.length) { toast("Nada para baixar.", false); return; }
 
   for (const r of rowsZero) {
     if (!r || !r.length) continue;
 
-        // --- LÊ A LINHA DO ZERAMENTO DE FORMA ROBUSTA ---
-    // formato esperado (colado):
-    // COD ; DESCRICAO (pode ter ;) ; G1 ; G2 ; G3 ; TEORICO ; CONTADO ; DIVERG ; LOCAL
-
+    // leitura robusta do fim (aguenta descrição com ; no meio)
     const n = r.length;
     if(n < 8) continue;
 
@@ -709,35 +717,23 @@ function zeroMapToken(token, label){
     const g2raw = (r[n - 6] ?? "").toString().trim();
     const g1raw = (r[n - 7] ?? "").toString().trim();
 
-    // descrição é tudo que sobra entre COD e G1
-    const descricao = r.slice(1, Math.max(1, n - 7)).join(";").trim();
-
-    const codigo = (r[0] ?? "").toString().trim();
-    if (!codigo) continue;
-
-    // divergência decide E/S e quantidade
     const diverg = toNumberBR(divergStr);
     if (diverg === 0) continue;
 
     const tipo = diverg > 0 ? "E" : "S";
     const qtd = Math.abs(diverg);
 
-    // ✅ mapeia somente o que for texto (Masculino, Preto, PIONEIRA...)
-    // se for número (41, 42) ele mantém
-const g1 = zeroMapToken(g1raw, "Grade 1");
-const g2 = zeroMapToken(g2raw, "Grade 2");
-const g3 = zeroMapToken(g3raw, "Grade 3");
+    const g1 = zeroMapToken(g1raw);
+    const g2 = zeroMapToken(g2raw);
+    const g3 = zeroMapToken(g3raw);
 
-    // regra de sequência: se g2 existe, g1 tem que existir; se g3 existe, g2 tem que existir
+    // regra de sequência
     if (g2 && !g1) { toast(`Erro: ${codigo} tem Grade 2 mas Grade 1 vazia.`, false); return; }
     if (g3 && !g2) { toast(`Erro: ${codigo} tem Grade 3 mas Grade 2 vazia.`, false); return; }
 
-    // local é o que você colou (30, 1608, etc). NÃO fixa 492.
     if (!local) { toast(`Erro: Local vazio no código ${codigo}`, false); return; }
 
     const total = qtd * precoN;
-
-    // M1|S|data|codigo|g1|g2|g3|local|qtd|0,01|total|5906
     const final = (tipo === "E") ? entradaFinal : saidaFinal;
 
     out.push([
@@ -749,7 +745,7 @@ const g3 = zeroMapToken(g3raw, "Grade 3");
       g2,
       g3,
       local,
-      String(qtd).replace(".", ","),     // se quiser sempre inteiro, eu travo
+      String(qtd).replace(".", ","),
       precoUnit,
       fmtBR(total),
       final

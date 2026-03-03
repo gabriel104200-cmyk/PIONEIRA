@@ -388,10 +388,11 @@
     setTimeout(()=>{el.remove()}, 4500);
   }
 
-  function parseLines(text){
-    const lines = (text||"").trim().split(/\r?\n/).filter(Boolean);
-    return lines.map(l => l.split(/[;\t,]/).map(x => x.trim()));
-  }
+function parseLines(text){
+  const lines = (text||"").trim().split(/\r?\n/).filter(Boolean);
+  // IMPORTANTE: não dividir por vírgula, porque existe "0,45mm" na descrição
+  return lines.map(l => l.split(/[;\t]/).map(x => x.trim()));
+}
 
   function renderTable(headers, rows, opts={}){
     const { highlightFn } = opts;

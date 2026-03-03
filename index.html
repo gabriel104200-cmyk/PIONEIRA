@@ -586,6 +586,110 @@ function baixarTxt(kind){
     return;
   }
 
+    // ===== ZERAMENTO (formato M1/M3 | S/E | data | ... ) =====
+  if (kind === "zero") {
+    // filial salva
+    let filial = (LS("zero_filial") || "").trim();
+    if (!filial) {
+      filial = prompt("Filial (1 ou 3):", "3") || "";
+      filial = filial.trim();
+      if (!filial) { toast("Filial não informada.", false); return; }
+      LS("zero_filial", filial);
+    }
+
+    const prefix = `M${filial}`;
+
+    // data atual
+    const hoje = new Date();
+    const dd = String(hoje.getDate()).padStart(2,"0");
+    const mm = String(hoje.getMonth()+1).padStart(2,"0");
+    const yyyy = hoje.getFullYear();
+    const data = `${dd}/${mm}/${yyyy}`;
+
+    // valor unitário fixo (0,01) e campo fixo 492 (como teu modelo)
+    const VAL_UNIT = 0.01;
+    const CAMPO_FIXO = "492";
+
+    const toBR2 = (n) => {
+      // 2 casas, vírgula decimal
+      return (Math.round(n * 100) / 100).toFixed(2).replace(".", ",");
+    };
+
+    const out = [];
+
+    for (const r of rows) {
+      // esperado do teu “colar”:
+      // 0=codigo | 1=descricao | 2=grade1 | 3=grade2 | 4=grade3 | 5=tinha | 6=contada | 7=divergencia | 8=local
+      const codigo = (r[0] || "").trim();
+      const g1 = (r[2] || "").trim(); // ex: M / F / PRE / AMO etc
+      const g2 = (r[3] || "").trim(); // ex: PRE / TU / 39 / etc
+      const g3 = (r[4] || "").trim(); // ex: G / XG / vazio
+
+      // divergência pode vir como "-" ou vazio
+      let divRaw = (r[7] ?? "").toString().trim();
+      if (divRaw === "-" || divRaw === "") continue;
+
+      // aceita vírgula também
+      divRaw = divRaw.replace(",", ".");
+      const div = Number(divRaw);
+
+      if (!codigo || !Number.isFinite(div) || div === 0) continue;
+
+      // regra:
+      // div > 0 = ENTRADA (E) e termina com 1905
+      // div < 0 = SAÍDA  (S) e termina com 5906
+      const tipo = div > 0 ? "E" : "S";
+      const localFinal = div > 0 ? "1905" : "5906";
+
+      const qtd = Math.abs(div);
+      const total = qtd * VAL_UNIT;
+
+      out.push([
+        prefix,
+        tipo,
+        data,
+        codigo,
+        g1,
+        g2,
+        g3,
+        CAMPO_FIXO,
+        String(qtd),
+        toBR2(VAL_UNIT),
+        toBR2(total),
+        localFinal
+      ].join("|"));
+    }
+
+    if (!out.length) { toast("Nenhuma divergência diferente de 0 para exportar.", false); return; }
+
+    const txt = out.join("\r\n") + "\r\n";
+
+    const blob = new Blob([txt], {type:"text/plain;charset=utf-8"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `ZERAMENTO_${data.replaceAll("/","-")}.txt`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+
+    toast("TXT de Zeramento gerado no formato Mx|S/E|... (1905/5906).");
+    return;
+  }
+
+  // ===== TRANSFERÊNCIA (por enquanto mantém simples) =====
+  // Quando você me mandar 2 linhas de exemplo do TXT de transferência (o “modelo antigo”),
+  // eu ajusto aqui igual fizemos no zeramento.
+  if (kind === "transfer") {
+    const txt = rows.map(r=>r.join(";")).join("\r\n") + "\r\n";
+    const blob = new Blob([txt], {type:"text/plain;charset=utf-8"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "transferencia.txt";
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast("TXT de Transferência gerado (modelo simples).");
+    return;
+  }
+
   // ===== OUTROS TIPOS (simples) =====
   const txt = rows.map(r=>r.join(";")).join("\r\n") + "\r\n";
   const blob = new Blob([txt], {type:"text/plain;charset=utf-8"});

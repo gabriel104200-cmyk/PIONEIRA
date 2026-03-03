@@ -609,60 +609,57 @@ if (kind === "zero") {
 
   // ===== Zeramento: aprende aos poucos (pergunta só o que não conhece) =====
  function zeroMapToken(token){
-  const t = (token ?? "").toString().trim();
-  if (!t) return ""; // permite vazio
+  const t0 = (token ?? "").toString().trim();
+  if (!t0) return "";
 
   const map = LSJ("zero_map") || {};
-  const key = t.toLowerCase();
+  const key = t0.toLowerCase();
 
-  // atalhos fixos (ajuste aqui como seu ERP espera)
+  // 1) Se já tem no mapa, usa
+  if (map[key]) return map[key];
+
+  // 2) Aliases automáticos (corrige ROS -> ROSA etc.)
   const aliases = {
     "ros": "ROSA",
-    "fume": "FUMÊ",   // se o ERP não aceitar acento, troque por "FUME"
+    "rosa": "ROSA",
+    "fume": "FUME",   // se o ERP aceitar FUMÊ, troque aqui
     "lar": "LAR",
     "pre": "PRE",
   };
-
-  // se já existe no mapa, retorna
-  if (map[key]) return map[key];
-
-  // aplica alias automático
-  if (aliases[key]) {
+  if (aliases[key]){
     map[key] = aliases[key];
     LSJ("zero_map", map);
     return map[key];
   }
 
-  // números: aceita sem perguntar
-  const isNumber = /^[0-9]+$/.test(t);
-  if (isNumber){
-    map[key] = t;
+  // 3) Números (ex: 304, 296) passam direto
+  if (/^[0-9]+$/.test(t0)){
+    map[key] = t0;
     LSJ("zero_map", map);
-    return t;
+    return t0;
   }
 
-  // só aceita automático se for um "código curto conhecido"
-  // (tamanhos / códigos que normalmente já são padrão)
+  // 4) Só aceita automático se for tamanho/código curto conhecido
   const knownShort = /^(P|M|G|GG|XG|XGG|XXG|PP|PM|46|48|50|52|54|56|58|60|41|42|43|44|45|PRE|AMO|MASC|FEM)$/i;
-  if (knownShort.test(t)){
-    map[key] = t.toUpperCase();
+  if (knownShort.test(t0)){
+    map[key] = t0.toUpperCase();
     LSJ("zero_map", map);
     return map[key];
   }
 
-  // caso contrário, PERGUNTA e grava
-  const resp = (prompt(`ZERAMENTO: Como "${t}" deve sair no TXT?`) || "").trim();
-  if(!resp){
-    toast(`Sem cadastro para "${t}". Vou usar como veio.`, false);
-    map[key] = t;
-    LSJ("zero_map", map);
-    return t;
+  // 5) Se for texto "grande" (ex: PARANA, XINGU, PANAMA) OBRIGA cadastrar
+  // (para você digitar 304 / 296 / etc.)
+  let resp = "";
+  while(!resp){
+    resp = (prompt(`ZERAMENTO: Como "${t0}" deve sair no TXT? (ex: 304 / 296 / 5279 / etc.)`) || "").trim();
+    if(!resp) alert(`Você precisa cadastrar "${t0}" para o TXT sair correto.`);
   }
 
   map[key] = resp;
   LSJ("zero_map", map);
   return resp;
 }
+  
   function toNumberBR(x){
     const s = (x ?? "").toString().trim().replace(/\./g,"").replace(",",".");
     const n = Number(s);

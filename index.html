@@ -586,43 +586,6 @@ function baixarTxt(kind){
     return;
   }
 
-     // ===== ZERAMENTO (formato M1/M3 | E/S | data | codigo | g1 | g2 | g3 | local | qtd | vl_unit | vl_total | 1905/5906) =====
-if (kind === "zero") {
-
-  // --- reset rápido (opcional) ---
-  // se quiser um botão depois eu te mando, mas por enquanto fica via console (mais acima)
-
-  // filial salva
-  let filial = LS("zero_filial");
-  if (!filial) {
-    filial = (prompt("Filial do arquivo? Digite 1 ou 3 (vai virar M1 ou M3):", "1") || "").trim();
-    if (!filial) { toast("Filial não informada.", false); return; }
-    if (!["1","3"].includes(filial)) { toast("Filial inválida. Use 1 ou 3.", false); return; }
-    LS("zero_filial", filial);
-  }
-
-  // preço unitário salvo (padrão 0,01)
-  let precoUnit = LS("zero_preco_unit");
-  if (!precoUnit) {
-    precoUnit = (prompt("Preço unitário para cálculo (ex: 0,01):", "0,01") || "0,01").trim();
-    if (!precoUnit) precoUnit = "0,01";
-    LS("zero_preco_unit", precoUnit);
-  }
-
-  // mapa de simplificações (salvo)
-  const defaultMap = {
-    "masculino": "M",
-    "feminino": "F",
-    "preto": "PRE",
-    "amarelo ouro": "AMO",
-    "pioneira": "11"
-  };
-  const zeroMap = LSJ("zero_map") || {};
-
-  function norm(s){
-    return (s || "").toString().trim().toLowerCase();
-  }
-
 // ===== ZERAMENTO (formato M1/M3 | E/S | data | codigo | g1 | g2 | g3 | local | qtd | vl_unit | vl_total | 1905/5906) =====
 if (kind === "zero") {
 

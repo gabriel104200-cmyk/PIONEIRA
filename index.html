@@ -692,14 +692,25 @@ function zeroMapToken(token, label){
   for (const r of rowsZero) {
     if (!r || !r.length) continue;
 
-    // ✅ pega SEMPRE do fim da linha pra aguentar campos vazios e descrições grandes:
-    // ... | g1 | g2 | g3 | teorico | contado | divergencia | local
-    const local = (r[r.length - 1] ?? "").toString().trim();
-    const divergStr = (r[r.length - 2] ?? "").toString().trim();
+        // --- LÊ A LINHA DO ZERAMENTO DE FORMA ROBUSTA ---
+    // formato esperado (colado):
+    // COD ; DESCRICAO (pode ter ;) ; G1 ; G2 ; G3 ; TEORICO ; CONTADO ; DIVERG ; LOCAL
 
-    const g3raw = (r[r.length - 5] ?? "").toString().trim();
-    const g2raw = (r[r.length - 6] ?? "").toString().trim();
-    const g1raw = (r[r.length - 7] ?? "").toString().trim();
+    const n = r.length;
+    if(n < 8) continue;
+
+    const codigo = (r[0] ?? "").toString().trim();
+    if(!codigo) continue;
+
+    const local = (r[n - 1] ?? "").toString().trim();
+    const divergStr = (r[n - 2] ?? "").toString().trim();
+
+    const g3raw = (r[n - 5] ?? "").toString().trim();
+    const g2raw = (r[n - 6] ?? "").toString().trim();
+    const g1raw = (r[n - 7] ?? "").toString().trim();
+
+    // descrição é tudo que sobra entre COD e G1
+    const descricao = r.slice(1, Math.max(1, n - 7)).join(";").trim();
 
     const codigo = (r[0] ?? "").toString().trim();
     if (!codigo) continue;
@@ -713,9 +724,9 @@ function zeroMapToken(token, label){
 
     // ✅ mapeia somente o que for texto (Masculino, Preto, PIONEIRA...)
     // se for número (41, 42) ele mantém
-    const g1 = mapToken(g1raw, "Grade 1");
-    const g2 = mapToken(g2raw, "Grade 2");
-    const g3 = mapToken(g3raw, "Grade 3");
+const g1 = zeroMapToken(g1raw, "Grade 1");
+const g2 = zeroMapToken(g2raw, "Grade 2");
+const g3 = zeroMapToken(g3raw, "Grade 3");
 
     // regra de sequência: se g2 existe, g1 tem que existir; se g3 existe, g2 tem que existir
     if (g2 && !g1) { toast(`Erro: ${codigo} tem Grade 2 mas Grade 1 vazia.`, false); return; }

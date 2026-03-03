@@ -676,12 +676,12 @@ if (kind === "zero") {
     const local = (r[n - 1] ?? "").toString().trim();
     const divergStr = (r[n - 2] ?? "").toString().trim();
 
-// Estrutura esperada no final:
+// Estrutura correta lendo do final:
 // ...; G1 ; G2 ; G3 ; Teorico ; Contado ; Divergencia ; Local
 
-const g1raw = (r[n - 8] ?? "").toString().trim();
-const g2raw = (r[n - 7] ?? "").toString().trim();
-const g3raw = (r[n - 6] ?? "").toString().trim();
+const g1raw = (r[n - 7] ?? "").toString().trim();
+const g2raw = (r[n - 6] ?? "").toString().trim();
+const g3raw = (r[n - 5] ?? "").toString().trim();
 
     const diverg = toNumberBR(divergStr);
     if (diverg === 0) continue;

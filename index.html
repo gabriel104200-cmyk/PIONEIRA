@@ -623,36 +623,43 @@ if (kind === "zero") {
     return (s || "").toString().trim().toLowerCase();
   }
 
-  function mapToken(token, label){
-    const t = (token ?? "").toString().trim();
-    if (!t) return ""; // aceita em branco
+// ===== Zeramento: aprende aos poucos (pergunta só o que não conhece) =====
+function zeroMapToken(token, label){
+  const t = (token ?? "").toString().trim();
+  if (!t) return ""; // permite grade vazia
 
-    // já está “curto” (tipo M, F, PRE, AMO, 11, GG, XGG, 41...) -> mantém
-    // (se quiser forçar pergunta mesmo assim, eu ajusto)
-    const looksLikeCode = /^[A-Z0-9]{1,6}$/.test(t.replace(/[^A-Z0-9]/g,""));
-    if (looksLikeCode && t.length <= 6) return t;
+  // Mapa salvo do zeramento
+  const map = LSJ("zero_map") || {};
 
-    const k = norm(t);
+  // chave normalizada (pra "Preto" e "preto" serem o mesmo)
+  const key = t.toLowerCase();
 
-    // primeiro: o que você já cadastrou
-    if (zeroMap[k]) return zeroMap[k];
+  // Se já existe cadastro, usa e não pergunta
+  if (map[key]) return map[key];
 
-    // segundo: padrões já conhecidos
-    if (defaultMap[k]) {
-      zeroMap[k] = defaultMap[k];
-      LSJ("zero_map", zeroMap);
-      return zeroMap[k];
-    }
-
-    // se não conhece: pergunta e salva
-    const sug = t; // sugestão inicial
-    const resp = (prompt(`Como "${t}" deve sair no TXT? (ex: PRE / M / F / AMO / 11)`, sug) || "").trim();
-    if (!resp) return t; // se cancelar, mantém como veio
-    zeroMap[k] = resp;
-    LSJ("zero_map", zeroMap);
-    return resp;
+  // Se já parece um código final (tipo: M, F, PRE, AMO, GG, XGG, 11, 41, 492 etc),
+  // não pergunta e já salva como ele mesmo (pra não ficar perguntando toda hora).
+  const isNumber = /^[0-9]+$/.test(t);
+  const isShortCode = /^[A-Z0-9]{1,6}$/.test(t);
+  if (isNumber || isShortCode){
+    map[key] = t;
+    LSJ("zero_map", map);
+    return t;
   }
 
+  // Se não conhece e não é "código pronto", pergunta e salva
+  const resp = (prompt(`ZERAMENTO: Como "${t}" deve sair no TXT? (ex: M / F / PRE / AMO / GG / XGG / 11)`) || "").trim();
+
+  if(!resp){
+    // Se não responder, usa como veio (mas não salva, pra perguntar na próxima)
+    toast(`Sem cadastro para "${t}". Vou usar como veio.`, false);
+    return t;
+  }
+
+  map[key] = resp;
+  LSJ("zero_map", map);
+  return resp;
+}
   function toNumberBR(x){
     const s = (x ?? "").toString().trim().replace(/\./g,"").replace(",",".");
     const n = Number(s);

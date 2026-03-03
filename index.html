@@ -586,17 +586,17 @@ function baixarTxt(kind){
     return;
   }
 
-    // ===== ZERAMENTO (formato M1/M3 | S/E | data | ... ) =====
+     // ===== ZERAMENTO (formato M1/M3 | S/E | data | ... ) =====
   if (kind === "zero") {
+
     // filial salva
     let filial = (LS("zero_filial") || "").trim();
     if (!filial) {
-      filial = prompt("Filial (1 ou 3):", "3") || "";
+      filial = prompt("Filial (1 ou 3):", "1") || "";
       filial = filial.trim();
       if (!filial) { toast("Filial não informada.", false); return; }
       LS("zero_filial", filial);
     }
-
     const prefix = `M${filial}`;
 
     // data atual
@@ -606,34 +606,83 @@ function baixarTxt(kind){
     const yyyy = hoje.getFullYear();
     const data = `${dd}/${mm}/${yyyy}`;
 
-    // valor unitário fixo (0,01) e campo fixo 492 (como teu modelo)
+    // valor unitário fixo
     const VAL_UNIT = 0.01;
-    const CAMPO_FIXO = "492";
 
-    const toBR2 = (n) => {
-      // 2 casas, vírgula decimal
-      return (Math.round(n * 100) / 100).toFixed(2).replace(".", ",");
+    const toBR2 = (n) => (Math.round(n * 100) / 100).toFixed(2).replace(".", ",");
+
+    // --- mapeamentos (salvos no navegador) ---
+    const normKey = (s) => (s ?? "").toString().trim().toLowerCase();
+
+    const defaultsGenero = {
+      "masculino": "M",
+      "feminino": "F",
+      "unissex": "U"
+    };
+
+    const defaultsCor = {
+      "preto": "PRE",
+      "amarelo ouro": "AMO",
+      "azul marinho": "AZM",
+      "camuflado": "CAM",
+      "verde militar": "VRD"
+    };
+
+    function getMap(lsKey, defaults){
+      const saved = LSJ(lsKey) || {};
+      return { ...defaults, ...saved };
+    }
+
+    function saveMap(lsKey, map){
+      LSJ(lsKey, map);
+    }
+
+    function mapOrAsk(lsKey, defaults, raw, label){
+      const key = normKey(raw);
+      if (!key) return "";
+      const map = getMap(lsKey, defaults);
+      if (map[key]) return map[key];
+
+      const sugestao = (raw || "").toString().slice(0, 3).toUpperCase();
+      const resp = prompt(`Como "${raw}" deve sair no TXT? (ex: ${sugestao})`, sugestao) || "";
+      const val = resp.trim().toUpperCase();
+      if (!val) return raw; // se cancelar, mantém como veio
+      map[key] = val;
+      saveMap(lsKey, map);
+      return val;
+    }
+
+    // tamanhos comuns (se aparecer escrito por extenso)
+    const defaultsTam = {
+      "pequeno": "P",
+      "medio": "M",
+      "médio": "M",
+      "grande": "G",
+      "extra grande": "XG"
     };
 
     const out = [];
 
     for (const r of rows) {
-      // esperado do teu “colar”:
-      // 0=codigo | 1=descricao | 2=grade1 | 3=grade2 | 4=grade3 | 5=tinha | 6=contada | 7=divergencia | 8=local
+      // seu colar no zeramento:
+      // 0=codigo | 1=descricao | 2=genero/grade1 | 3=cor/grade2 | 4=tam/grade3 | 5=tinha | 6=contada | 7=divergencia | 8=local(variável)
       const codigo = (r[0] || "").trim();
-      const g1 = (r[2] || "").trim(); // ex: M / F / PRE / AMO etc
-      const g2 = (r[3] || "").trim(); // ex: PRE / TU / 39 / etc
-      const g3 = (r[4] || "").trim(); // ex: G / XG / vazio
+      const g1Raw = (r[2] || "").trim();
+      const g2Raw = (r[3] || "").trim();
+      const g3Raw = (r[4] || "").trim();
+      const localMov = (r[8] ?? "").toString().trim(); // ✅ aqui pega o "30" (ou o que vier)
 
-      // divergência pode vir como "-" ou vazio
       let divRaw = (r[7] ?? "").toString().trim();
       if (divRaw === "-" || divRaw === "") continue;
-
-      // aceita vírgula também
       divRaw = divRaw.replace(",", ".");
       const div = Number(divRaw);
-
       if (!codigo || !Number.isFinite(div) || div === 0) continue;
+
+      // simplifica campos (se não estiver no padrão, ele pergunta e salva)
+      const g1 = mapOrAsk("zero_map_g1", defaultsGenero, g1Raw, "G1");
+      const g2 = mapOrAsk("zero_map_g2", defaultsCor, g2Raw, "G2");
+      // tamanho: tenta mapear, se não achar, pergunta (serve também pra números tipo 39/40/41)
+      const g3 = mapOrAsk("zero_map_g3", defaultsTam, g3Raw, "G3");
 
       // regra:
       // div > 0 = ENTRADA (E) e termina com 1905
@@ -652,7 +701,7 @@ function baixarTxt(kind){
         g1,
         g2,
         g3,
-        CAMPO_FIXO,
+        localMov,                 // ✅ aqui entra o local variável (ex: 30)
         String(qtd),
         toBR2(VAL_UNIT),
         toBR2(total),
@@ -671,7 +720,7 @@ function baixarTxt(kind){
     a.click();
     URL.revokeObjectURL(a.href);
 
-    toast("TXT de Zeramento gerado no formato Mx|S/E|... (1905/5906).");
+    toast("TXT de Zeramento gerado (com abreviações e local variável).");
     return;
   }
 

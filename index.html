@@ -586,143 +586,171 @@ function baixarTxt(kind){
     return;
   }
 
-     // ===== ZERAMENTO (formato M1/M3 | S/E | data | ... ) =====
-  if (kind === "zero") {
+     // ===== ZERAMENTO (formato M1/M3 | E/S | data | codigo | g1 | g2 | g3 | local | qtd | vl_unit | vl_total | 1905/5906) =====
+if (kind === "zero") {
 
-    // filial salva
-    let filial = (LS("zero_filial") || "").trim();
-    if (!filial) {
-      filial = prompt("Filial (1 ou 3):", "1") || "";
-      filial = filial.trim();
-      if (!filial) { toast("Filial não informada.", false); return; }
-      LS("zero_filial", filial);
-    }
-    const prefix = `M${filial}`;
+  // --- reset rápido (opcional) ---
+  // se quiser um botão depois eu te mando, mas por enquanto fica via console (mais acima)
 
-    // data atual
-    const hoje = new Date();
-    const dd = String(hoje.getDate()).padStart(2,"0");
-    const mm = String(hoje.getMonth()+1).padStart(2,"0");
-    const yyyy = hoje.getFullYear();
-    const data = `${dd}/${mm}/${yyyy}`;
-
-    // valor unitário fixo
-    const VAL_UNIT = 0.01;
-
-    const toBR2 = (n) => (Math.round(n * 100) / 100).toFixed(2).replace(".", ",");
-
-    // --- mapeamentos (salvos no navegador) ---
-    const normKey = (s) => (s ?? "").toString().trim().toLowerCase();
-
-    const defaultsGenero = {
-      "masculino": "M",
-      "feminino": "F",
-      "unissex": "U"
-    };
-
-    const defaultsCor = {
-      "preto": "PRE",
-      "amarelo ouro": "AMO",
-      "azul marinho": "AZM",
-      "camuflado": "CAM",
-      "verde militar": "VRD"
-    };
-
-    function getMap(lsKey, defaults){
-      const saved = LSJ(lsKey) || {};
-      return { ...defaults, ...saved };
-    }
-
-    function saveMap(lsKey, map){
-      LSJ(lsKey, map);
-    }
-
-    function mapOrAsk(lsKey, defaults, raw, label){
-      const key = normKey(raw);
-      if (!key) return "";
-      const map = getMap(lsKey, defaults);
-      if (map[key]) return map[key];
-
-      const sugestao = (raw || "").toString().slice(0, 3).toUpperCase();
-      const resp = prompt(`Como "${raw}" deve sair no TXT? (ex: ${sugestao})`, sugestao) || "";
-      const val = resp.trim().toUpperCase();
-      if (!val) return raw; // se cancelar, mantém como veio
-      map[key] = val;
-      saveMap(lsKey, map);
-      return val;
-    }
-
-    // tamanhos comuns (se aparecer escrito por extenso)
-    const defaultsTam = {
-      "pequeno": "P",
-      "medio": "M",
-      "médio": "M",
-      "grande": "G",
-      "extra grande": "XG"
-    };
-
-    const out = [];
-
-    for (const r of rows) {
-      // seu colar no zeramento:
-      // 0=codigo | 1=descricao | 2=genero/grade1 | 3=cor/grade2 | 4=tam/grade3 | 5=tinha | 6=contada | 7=divergencia | 8=local(variável)
-      const codigo = (r[0] || "").trim();
-      const g1Raw = (r[2] || "").trim();
-      const g2Raw = (r[3] || "").trim();
-      const g3Raw = (r[4] || "").trim();
-      const localMov = (r[8] ?? "").toString().trim(); // ✅ aqui pega o "30" (ou o que vier)
-
-      let divRaw = (r[7] ?? "").toString().trim();
-      if (divRaw === "-" || divRaw === "") continue;
-      divRaw = divRaw.replace(",", ".");
-      const div = Number(divRaw);
-      if (!codigo || !Number.isFinite(div) || div === 0) continue;
-
-      // simplifica campos (se não estiver no padrão, ele pergunta e salva)
-      const g1 = mapOrAsk("zero_map_g1", defaultsGenero, g1Raw, "G1");
-      const g2 = mapOrAsk("zero_map_g2", defaultsCor, g2Raw, "G2");
-      // tamanho: tenta mapear, se não achar, pergunta (serve também pra números tipo 39/40/41)
-      const g3 = mapOrAsk("zero_map_g3", defaultsTam, g3Raw, "G3");
-
-      // regra:
-      // div > 0 = ENTRADA (E) e termina com 1905
-      // div < 0 = SAÍDA  (S) e termina com 5906
-      const tipo = div > 0 ? "E" : "S";
-      const localFinal = div > 0 ? "1905" : "5906";
-
-      const qtd = Math.abs(div);
-      const total = qtd * VAL_UNIT;
-
-      out.push([
-        prefix,
-        tipo,
-        data,
-        codigo,
-        g1,
-        g2,
-        g3,
-        localMov,                 // ✅ aqui entra o local variável (ex: 30)
-        String(qtd),
-        toBR2(VAL_UNIT),
-        toBR2(total),
-        localFinal
-      ].join("|"));
-    }
-
-    if (!out.length) { toast("Nenhuma divergência diferente de 0 para exportar.", false); return; }
-
-    const txt = out.join("\r\n") + "\r\n";
-
-    const blob = new Blob([txt], {type:"text/plain;charset=utf-8"});
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `ZERAMENTO_${data.replaceAll("/","-")}.txt`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-
-    toast("TXT de Zeramento gerado (com abreviações e local variável).");
-    return;
+  // filial salva
+  let filial = LS("zero_filial");
+  if (!filial) {
+    filial = (prompt("Filial do arquivo? Digite 1 ou 3 (vai virar M1 ou M3):", "1") || "").trim();
+    if (!filial) { toast("Filial não informada.", false); return; }
+    if (!["1","3"].includes(filial)) { toast("Filial inválida. Use 1 ou 3.", false); return; }
+    LS("zero_filial", filial);
   }
+
+  // preço unitário salvo (padrão 0,01)
+  let precoUnit = LS("zero_preco_unit");
+  if (!precoUnit) {
+    precoUnit = (prompt("Preço unitário para cálculo (ex: 0,01):", "0,01") || "0,01").trim();
+    if (!precoUnit) precoUnit = "0,01";
+    LS("zero_preco_unit", precoUnit);
+  }
+
+  // mapa de simplificações (salvo)
+  const defaultMap = {
+    "masculino": "M",
+    "feminino": "F",
+    "preto": "PRE",
+    "amarelo ouro": "AMO",
+    "pioneira": "11"
+  };
+  const zeroMap = LSJ("zero_map") || {};
+
+  function norm(s){
+    return (s || "").toString().trim().toLowerCase();
+  }
+
+  function mapToken(token, label){
+    const t = (token ?? "").toString().trim();
+    if (!t) return ""; // aceita em branco
+
+    // já está “curto” (tipo M, F, PRE, AMO, 11, GG, XGG, 41...) -> mantém
+    // (se quiser forçar pergunta mesmo assim, eu ajusto)
+    const looksLikeCode = /^[A-Z0-9]{1,6}$/.test(t.replace(/[^A-Z0-9]/g,""));
+    if (looksLikeCode && t.length <= 6) return t;
+
+    const k = norm(t);
+
+    // primeiro: o que você já cadastrou
+    if (zeroMap[k]) return zeroMap[k];
+
+    // segundo: padrões já conhecidos
+    if (defaultMap[k]) {
+      zeroMap[k] = defaultMap[k];
+      LSJ("zero_map", zeroMap);
+      return zeroMap[k];
+    }
+
+    // se não conhece: pergunta e salva
+    const sug = t; // sugestão inicial
+    const resp = (prompt(`Como "${t}" deve sair no TXT? (ex: PRE / M / F / AMO / 11)`, sug) || "").trim();
+    if (!resp) return t; // se cancelar, mantém como veio
+    zeroMap[k] = resp;
+    LSJ("zero_map", zeroMap);
+    return resp;
+  }
+
+  function toNumberBR(x){
+    const s = (x ?? "").toString().trim().replace(/\./g,"").replace(",",".");
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function fmtBR(n){
+    // 2 casas com vírgula
+    return n.toFixed(2).replace(".", ",");
+  }
+
+  const hoje = new Date();
+  const dd = String(hoje.getDate()).padStart(2,"0");
+  const mm = String(hoje.getMonth()+1).padStart(2,"0");
+  const yyyy = hoje.getFullYear();
+  const data = `${dd}/${mm}/${yyyy}`;
+
+  const precoN = toNumberBR(precoUnit);
+
+  const saidaFinal = "5906";
+  const entradaFinal = "1905";
+  const prefixoFilial = `M${filial}`;
+
+  const out = [];
+
+  // lê as linhas IMPORTADAS (tab_zero)
+  const rowsZero = LSJ("tab_zero") || [];
+  if (!rowsZero.length) { toast("Nada para baixar.", false); return; }
+
+  for (const r of rowsZero) {
+    if (!r || !r.length) continue;
+
+    // ✅ pega SEMPRE do fim da linha pra aguentar campos vazios e descrições grandes:
+    // ... | g1 | g2 | g3 | teorico | contado | divergencia | local
+    const local = (r[r.length - 1] ?? "").toString().trim();
+    const divergStr = (r[r.length - 2] ?? "").toString().trim();
+
+    const g3raw = (r[r.length - 5] ?? "").toString().trim();
+    const g2raw = (r[r.length - 6] ?? "").toString().trim();
+    const g1raw = (r[r.length - 7] ?? "").toString().trim();
+
+    const codigo = (r[0] ?? "").toString().trim();
+    if (!codigo) continue;
+
+    // divergência decide E/S e quantidade
+    const diverg = toNumberBR(divergStr);
+    if (diverg === 0) continue;
+
+    const tipo = diverg > 0 ? "E" : "S";
+    const qtd = Math.abs(diverg);
+
+    // ✅ mapeia somente o que for texto (Masculino, Preto, PIONEIRA...)
+    // se for número (41, 42) ele mantém
+    const g1 = mapToken(g1raw, "Grade 1");
+    const g2 = mapToken(g2raw, "Grade 2");
+    const g3 = mapToken(g3raw, "Grade 3");
+
+    // regra de sequência: se g2 existe, g1 tem que existir; se g3 existe, g2 tem que existir
+    if (g2 && !g1) { toast(`Erro: ${codigo} tem Grade 2 mas Grade 1 vazia.`, false); return; }
+    if (g3 && !g2) { toast(`Erro: ${codigo} tem Grade 3 mas Grade 2 vazia.`, false); return; }
+
+    // local é o que você colou (30, 1608, etc). NÃO fixa 492.
+    if (!local) { toast(`Erro: Local vazio no código ${codigo}`, false); return; }
+
+    const total = qtd * precoN;
+
+    // M1|S|data|codigo|g1|g2|g3|local|qtd|0,01|total|5906
+    const final = (tipo === "E") ? entradaFinal : saidaFinal;
+
+    out.push([
+      prefixoFilial,
+      tipo,
+      data,
+      codigo,
+      g1,
+      g2,
+      g3,
+      local,
+      String(qtd).replace(".", ","),     // se quiser sempre inteiro, eu travo
+      precoUnit,
+      fmtBR(total),
+      final
+    ].join("|"));
+  }
+
+  if (!out.length) { toast("Nada para gerar (divergência = 0 em tudo).", false); return; }
+
+  const txt = out.join("\r\n") + "\r\n";
+  const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `ZER_${data.replaceAll("/","-")}.txt`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+
+  toast("TXT de Zeramento gerado com sucesso.");
+  return;
+}
 
   // ===== TRANSFERÊNCIA (por enquanto mantém simples) =====
   // Quando você me mandar 2 linhas de exemplo do TXT de transferência (o “modelo antigo”),

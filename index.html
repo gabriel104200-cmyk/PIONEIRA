@@ -546,13 +546,27 @@ function baixarTxt(kind){
   const rows = LSJ("tab_"+kind) || [];
   if(!rows.length){ toast("Nada para baixar.", false); return; }
 
-  // ===== REQUISIÇÃO (formato antigo) =====
-  // Gera vários blocos R/I (um por pedido), igual ao sistema antigo
-  if(kind === "req"){
+  // helpers (disponível para todos os tipos)
+  function toNumberBR(x){
+    const s = (x ?? "").toString().trim().replace(/\./g,"").replace(",",".");
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+  function fmtBR(n){
+    return n.toFixed(2).replace(".", ",");
+  }
 
+  // data atual
+  const hoje = new Date();
+  const dd = String(hoje.getDate()).padStart(2,"0");
+  const mm = String(hoje.getMonth()+1).padStart(2,"0");
+  const yyyy = hoje.getFullYear();
+  const data = `${dd}/${mm}/${yyyy}`;
+
+  // ===== REQUISIÇÃO (formato antigo) =====
+  if(kind === "req"){
     const departamento = "27";
 
-    // requisitante salvo
     let requisitante = LS("req_requisitante");
     if(!requisitante){
       requisitante = prompt("Informe seu REQUISITANTE (ex: 26):");
@@ -561,17 +575,8 @@ function baixarTxt(kind){
     }
     requisitante = requisitante.trim();
 
-    // data atual
-    const hoje = new Date();
-    const dd = String(hoje.getDate()).padStart(2,"0");
-    const mm = String(hoje.getMonth()+1).padStart(2,"0");
-    const yyyy = hoje.getFullYear();
-    const data = `${dd}/${mm}/${yyyy}`;
-
-    // locais aprendidos por CÓDIGO
     const locais = LSJ("req_locais") || {};
 
-    // agrupar por pedido
     const byPedido = new Map();
     for(const r of rows){
       const pedido = (r[0] || "").trim();
@@ -579,65 +584,44 @@ function baixarTxt(kind){
       if(!byPedido.has(pedido)) byPedido.set(pedido, []);
       byPedido.get(pedido).push(r);
     }
-
     if(byPedido.size === 0){
       toast("Nenhum pedido válido encontrado.", false);
       return;
     }
 
-    // monta TXT com vários blocos (R + itens)
     const out = [];
 
     for(const [pedido, linhas] of byPedido.entries()){
       const cliente = (linhas[0][1] || "").trim();
 
-      // linha R
-      const linhaR = [
+      out.push([
         "R", data, "1", "1", requisitante, departamento,
         `${pedido}  -  ${cliente}`,
         pedido, "0", "0"
-      ].join("|");
+      ].join("|"));
 
-      out.push(linhaR);
-
-      // itens do pedido
       for(const r of linhas){
         const codigo = (r[2] || "").trim();
         const item   = (r[3] || "").trim();
         const chave5 = (r[4] || "").trim();
         const chave6 = (r[5] || "").trim();
+        const qtd    = (r[7] ?? r[6] ?? "").toString().trim();
 
-        // quantidade (algumas linhas vêm com 7 colunas, outras com 8)
-        const qtd = (r[7] ?? r[6] ?? "").toString().trim();
+        if(!codigo || !qtd) continue;
 
-        if(!codigo || !qtd){
-          // pula linha inválida
-          continue;
-        }
-
-        // local aprendido por código
         let local = locais[codigo];
         if(!local){
-          local = prompt(`Local de saída do código ${codigo}:`) || "";
-          local = local.trim();
-          if(local){
-            locais[codigo] = local;
-          }else{
-            // se não informar local, ainda gera (mas pode falhar no seu sistema)
-            local = "";
-          }
+          local = (prompt(`Local de saída do código ${codigo}:`) || "").trim();
+          if(local) locais[codigo] = local;
         }
 
-        // I|P|...|QTD|3|LOCAL  (tipo necessidade fixo = 3)
         out.push(["I","P",codigo,item,chave5,chave6,qtd,"3",local].join("|"));
       }
     }
 
-    // salva locais aprendidos
     LSJ("req_locais", locais);
 
     const txt = out.join("\r\n") + "\r\n";
-
     const blob = new Blob([txt], {type:"text/plain;charset=utf-8"});
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -649,179 +633,170 @@ function baixarTxt(kind){
     return;
   }
 
-// ===== ZERAMENTO (formato M1/M3 | E/S | data | codigo | g1 | g2 | g3 | local | qtd | vl_unit | vl_total | 1905/5906) =====
-if (kind === "zero") {
+  // ===== ZERAMENTO (formato M1/M3 | E/S | data | codigo | g1 | g2 | g3 | local | qtd | vl_unit | vl_total | 1905/5906) =====
+  if (kind === "zero") {
 
-  // filial salva
-  let filial = LS("zero_filial");
-  if (!filial) {
-    filial = (prompt("Filial do arquivo? Digite 1 ou 3 (vai virar M1 ou M3):", "1") || "").trim();
-    if (!filial) { toast("Filial não informada.", false); return; }
-    if (!["1","3"].includes(filial)) { toast("Filial inválida. Use 1 ou 3.", false); return; }
-    LS("zero_filial", filial);
+    let filial = LS("zero_filial");
+    if (!filial) {
+      filial = (prompt("Filial do arquivo? Digite 1 ou 3 (vai virar M1 ou M3):", "1") || "").trim();
+      if (!["1","3"].includes(filial)) { toast("Filial inválida. Use 1 ou 3.", false); return; }
+      LS("zero_filial", filial);
+    }
+
+    let precoUnit = LS("zero_preco_unit");
+    if (!precoUnit) {
+      precoUnit = (prompt("Preço unitário para cálculo (ex: 0,01):", "0,01") || "0,01").trim();
+      if (!precoUnit) precoUnit = "0,01";
+      LS("zero_preco_unit", precoUnit);
+    }
+
+    const precoN = toNumberBR(precoUnit);
+    const saidaFinal = "5906";
+    const entradaFinal = "1905";
+    const prefixoFilial = `M${filial}`;
+
+    const out = [];
+
+    const rowsZero = LSJ("tab_zero") || [];
+    if (!rowsZero.length) { toast("Nada para baixar.", false); return; }
+
+    for (const r of rowsZero) {
+      if (!r || !r.length) continue;
+
+      const n = r.length;
+      if(n < 8) continue;
+
+      const codigo = (r[0] ?? "").toString().trim();
+      if(!codigo) continue;
+
+      const local = (r[n - 1] ?? "").toString().trim();
+      const divergStr = (r[n - 2] ?? "").toString().trim();
+
+      const g1raw = (r[n - 7] ?? "").toString().trim();
+      const g2raw = (r[n - 6] ?? "").toString().trim();
+      const g3raw = (r[n - 5] ?? "").toString().trim();
+
+      const diverg = toNumberBR(divergStr);
+      if (diverg === 0) continue;
+
+      const tipo = diverg > 0 ? "E" : "S";
+      const qtd = Math.abs(diverg);
+
+      const g1 = zeroMapToken(g1raw);
+      const g2 = zeroMapToken(g2raw);
+      const g3 = zeroMapToken(g3raw);
+
+      if (g2 && !g1) { toast(`Erro: ${codigo} tem Grade 2 mas Grade 1 vazia.`, false); return; }
+      if (g3 && !g2) { toast(`Erro: ${codigo} tem Grade 3 mas Grade 2 vazia.`, false); return; }
+      if (!local) { toast(`Erro: Local vazio no código ${codigo}`, false); return; }
+
+      const total = qtd * precoN;
+      const final = (tipo === "E") ? entradaFinal : saidaFinal;
+
+      out.push([
+        prefixoFilial,
+        tipo,
+        data,
+        codigo,
+        g1,
+        g2,
+        g3,
+        local,
+        String(qtd).replace(".", ","),
+        precoUnit,
+        fmtBR(total),
+        final
+      ].join("|"));
+    }
+
+    if (!out.length) { toast("Nada para gerar (divergência = 0 em tudo).", false); return; }
+
+    const txt = out.join("\r\n") + "\r\n";
+    const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `ZER_${data.replaceAll("/","-")}.txt`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+
+    toast("TXT de Zeramento gerado com sucesso.");
+    return;
   }
 
-  // preço unitário salvo (padrão 0,01)
-  let precoUnit = LS("zero_preco_unit");
-  if (!precoUnit) {
-    precoUnit = (prompt("Preço unitário para cálculo (ex: 0,01):", "0,01") || "0,01").trim();
-    if (!precoUnit) precoUnit = "0,01";
-    LS("zero_preco_unit", precoUnit);
-  }
-  
-  function toNumberBR(x){
-    const s = (x ?? "").toString().trim().replace(/\./g,"").replace(",",".");
-    const n = Number(s);
-    return Number.isFinite(n) ? n : 0;
-  }
+  // ===== TRANSFERÊNCIA (formato ERP) =====
+  if (kind === "transfer") {
 
-  function fmtBR(n){
-    return n.toFixed(2).replace(".", ",");
-  }
+    let filial = LS("transf_filial");
+    if (!filial) {
+      filial = (prompt("Filial? (1 ou 3)", "1") || "").trim();
+      if (!["1","3"].includes(filial)) { toast("Filial inválida.", false); return; }
+      LS("transf_filial", filial);
+    }
 
-  const hoje = new Date();
-  const dd = String(hoje.getDate()).padStart(2,"0");
-  const mm = String(hoje.getMonth()+1).padStart(2,"0");
-  const yyyy = hoje.getFullYear();
-  const data = `${dd}/${mm}/${yyyy}`;
+    const prefixoFilial = `M${filial}`;
+    const precoUnit = "0,01";
+    const precoN = 0.01;
+    const final = "5949";
 
-  const precoN = toNumberBR(precoUnit);
-  const saidaFinal = "5906";
-  const entradaFinal = "1905";
-  const prefixoFilial = `M${filial}`;
+    const out = [];
 
-  const out = [];
+    for (const r of rows){
+      const codigo = (r[0] || "").trim();
 
-  const rowsZero = LSJ("tab_zero") || [];
-  if (!rowsZero.length) { toast("Nada para baixar.", false); return; }
+      // layout: 0 codigo | 1 desc | 2 cor | 3 tamanho | 4 g3(vazio) | 5 qtd1 | 6 qtd2 | 7 diverg | 8 local1 | 9 local2
+      const g1 = zeroMapToken(r[2]); // cor (ex: Preto -> PRE)
+      const g2 = zeroMapToken(r[3]); // tamanho (ex: XGG)
+      const g3 = zeroMapToken(r[4]); // normalmente vazio
 
-  for (const r of rowsZero) {
-    if (!r || !r.length) continue;
+      const diverg = toNumberBR(r[7]); // -2 / +1
+      if (!codigo || diverg === 0) continue;
 
-    // leitura robusta do fim (aguenta descrição com ; no meio)
-    const n = r.length;
-    if(n < 8) continue;
+      const qtd = Math.abs(diverg);
 
-    const codigo = (r[0] ?? "").toString().trim();
-    if(!codigo) continue;
+      const local1 = (r[8] || "").trim();
+      const local2 = (r[9] || "").trim();
+      if(!local1 || !local2) continue;
 
-    const local = (r[n - 1] ?? "").toString().trim();
-    const divergStr = (r[n - 2] ?? "").toString().trim();
+      // regra do sinal:
+      // diverg < 0: tira do local1 -> local2
+      // diverg > 0: tira do local2 -> local1
+      const localOrigem  = diverg < 0 ? local1 : local2;
+      const localDestino = diverg < 0 ? local2 : local1;
 
-// Estrutura correta lendo do final:
-// ...; G1 ; G2 ; G3 ; Teorico ; Contado ; Divergencia ; Local
+      const total = qtd * precoN;
 
-const g1raw = (r[n - 7] ?? "").toString().trim();
-const g2raw = (r[n - 6] ?? "").toString().trim();
-const g3raw = (r[n - 5] ?? "").toString().trim();
+      out.push([
+        prefixoFilial,
+        "T",
+        data,
+        codigo,
+        g1,
+        g2,
+        g3,
+        localOrigem,
+        localDestino,
+        String(qtd).replace(".", ","),
+        precoUnit,
+        fmtBR(total),
+        final
+      ].join("|"));
+    }
 
-    const diverg = toNumberBR(divergStr);
-    if (diverg === 0) continue;
+    if(!out.length){ toast("Nada para gerar na Transferência.", false); return; }
 
-    const tipo = diverg > 0 ? "E" : "S";
-    const qtd = Math.abs(diverg);
+    const txt = out.join("\r\n") + "\r\n";
+    const blob = new Blob([txt], {type:"text/plain;charset=utf-8"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `TRANSF_${data.replaceAll("/","-")}.txt`;
+    a.click();
+    URL.revokeObjectURL(a.href);
 
-    const g1 = zeroMapToken(g1raw);
-    const g2 = zeroMapToken(g2raw);
-    const g3 = zeroMapToken(g3raw);
-
-    // regra de sequência
-    if (g2 && !g1) { toast(`Erro: ${codigo} tem Grade 2 mas Grade 1 vazia.`, false); return; }
-    if (g3 && !g2) { toast(`Erro: ${codigo} tem Grade 3 mas Grade 2 vazia.`, false); return; }
-
-    if (!local) { toast(`Erro: Local vazio no código ${codigo}`, false); return; }
-
-    const total = qtd * precoN;
-    const final = (tipo === "E") ? entradaFinal : saidaFinal;
-
-    out.push([
-      prefixoFilial,
-      tipo,
-      data,
-      codigo,
-      g1,
-      g2,
-      g3,
-      local,
-      String(qtd).replace(".", ","),
-      precoUnit,
-      fmtBR(total),
-      final
-    ].join("|"));
+    toast("TXT de Transferência gerado.");
+    return;
   }
 
-  if (!out.length) { toast("Nada para gerar (divergência = 0 em tudo).", false); return; }
-
-  const txt = out.join("\r\n") + "\r\n";
-  const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `ZER_${data.replaceAll("/","-")}.txt`;
-  a.click();
-  URL.revokeObjectURL(a.href);
-
-  toast("TXT de Zeramento gerado com sucesso.");
-  return;
-}
-
- // ===== TRANSFERÊNCIA (formato ERP) =====
-for (const r of rows){
-
-  const codigo = (r[0] || "").trim();
-
-  // seu layout: 0 codigo | 1 desc | 2 cor | 3 grade2 | 4 grade3 | 5 qtd1 | 6 qtd2 | 7 diverg | 8 local1 | 9 local2
-  const g1 = zeroMapToken(r[2]); // cor (ex: Preto -> PRE)
-  const g2 = zeroMapToken(r[3]); // tamanho (ex: XGG)
-  const g3 = zeroMapToken(r[4]); // normalmente vazio
-
-  const diverg = toNumberBR(r[7]); // -2 / +1
-  if (!codigo || !diverg) continue;
-
-  const qtd = Math.abs(diverg);
-
-  const local1 = (r[8] || "").trim(); // exemplo: 2097
-  const local2 = (r[9] || "").trim(); // exemplo: 4044
-  if(!local1 || !local2) continue;
-
-  // ✅ REGRA DO SINAL (o que você explicou)
-  // diverg < 0: tira do local1 -> local2
-  // diverg > 0: tira do local2 -> local1
-  const localOrigem  = diverg < 0 ? local1 : local2;
-  const localDestino = diverg < 0 ? local2 : local1;
-
-  const total = qtd * 0.01;
-
-  out.push([
-    prefixoFilial,
-    "T",
-    data,
-    codigo,
-    g1,
-    g2,
-    g3,
-    localOrigem,
-    localDestino,
-    String(qtd).replace(".", ","),
-    precoUnit,
-    fmtBR(total),
-    final
-  ].join("|"));
-}
-  
-  const txt = out.join("\r\n") + "\r\n";
-
-  const blob = new Blob([txt], {type:"text/plain;charset=utf-8"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `TRANSF_${data.replaceAll("/","-")}.txt`;
-  a.click();
-  URL.revokeObjectURL(a.href);
-
-  toast("TXT de Transferência gerado.");
-  return;
-}
-
-  // ===== OUTROS TIPOS (simples) =====
+  // ===== fallback =====
   const txt = rows.map(r=>r.join(";")).join("\r\n") + "\r\n";
   const blob = new Blob([txt], {type:"text/plain;charset=utf-8"});
   const a = document.createElement("a");
@@ -830,6 +805,7 @@ for (const r of rows){
   a.click();
   URL.revokeObjectURL(a.href);
 }
+  
   function salvarEXS(){
     LSJ("exs", {
       saldo: Number($("#exSaldo").value||0),

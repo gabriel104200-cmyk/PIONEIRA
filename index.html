@@ -472,13 +472,22 @@ function parseLines(text){
     toast("Importação concluída.");
   }
 
-  function limparTabela(kind){
-    LSJ("tab_"+kind, []);
-    if(kind==="transfer") $("#tbTransfer").innerHTML="";
-    if(kind==="zero") $("#tbZero").innerHTML="";
-    if(kind==="req") $("#tbReq").innerHTML="";
-    toast("Limpo.");
-  }
+ function limparTabela(kind){
+
+  // limpa o texto colado
+  if(kind==="transfer") $("#txTransfer").value = "";
+  if(kind==="zero") $("#txZero").value = "";
+  if(kind==="req") $("#txReq").value = "";
+
+  // limpa dados da tabela
+  LSJ("tab_"+kind, []);
+
+  if(kind==="transfer") $("#tbTransfer").innerHTML="";
+  if(kind==="zero") $("#tbZero").innerHTML="";
+  if(kind==="req") $("#tbReq").innerHTML="";
+
+  toast("Texto e tabela limpos.");
+}
 
 function baixarTxt(kind){
   const rows = LSJ("tab_"+kind) || [];

@@ -488,7 +488,60 @@ function parseLines(text){
 
   toast("Texto e tabela limpos.");
 }
+  
+  // ===== Zeramento: aprende aos poucos (pergunta só o que não conhece) =====
+ function zeroMapToken(token){
+  const t0 = (token ?? "").toString().trim();
+  if (!t0) return "";
 
+  const map = LSJ("zero_map") || {};
+  const key = t0.toLowerCase();
+
+  // 1) Se já tem no mapa, usa
+  if (map[key]) return map[key];
+
+  // 2) Aliases automáticos (corrige ROS -> ROSA etc.)
+  const aliases = {
+    "ros": "ROSA",
+    "rosa": "ROSA",
+    "fume": "FUME",   // se o ERP aceitar FUMÊ, troque aqui
+    "lar": "LAR",
+    "pre": "PRE",
+  };
+  if (aliases[key]){
+    map[key] = aliases[key];
+    LSJ("zero_map", map);
+    return map[key];
+  }
+
+  // 3) Números (ex: 304, 296) passam direto
+  if (/^[0-9]+$/.test(t0)){
+    map[key] = t0;
+    LSJ("zero_map", map);
+    return t0;
+  }
+
+  // 4) Só aceita automático se for tamanho/código curto conhecido
+  const knownShort = /^(P|M|G|GG|XG|XGG|XXG|PP|PM|46|48|50|52|54|56|58|60|41|42|43|44|45|PRE|AMO|MASC|FEM)$/i;
+  if (knownShort.test(t0)){
+    map[key] = t0.toUpperCase();
+    LSJ("zero_map", map);
+    return map[key];
+  }
+
+  // 5) Se for texto "grande" (ex: PARANA, XINGU, PANAMA) OBRIGA cadastrar
+  // (para você digitar 304 / 296 / etc.)
+  let resp = "";
+  while(!resp){
+    resp = (prompt(`ZERAMENTO: Como "${t0}" deve sair no TXT? (ex: 304 / 296 / 5279 / etc.)`) || "").trim();
+    if(!resp) alert(`Você precisa cadastrar "${t0}" para o TXT sair correto.`);
+  }
+
+  map[key] = resp;
+  LSJ("zero_map", map);
+  return resp;
+}
+  
 function baixarTxt(kind){
   const rows = LSJ("tab_"+kind) || [];
   if(!rows.length){ toast("Nada para baixar.", false); return; }
@@ -615,59 +668,6 @@ if (kind === "zero") {
     if (!precoUnit) precoUnit = "0,01";
     LS("zero_preco_unit", precoUnit);
   }
-
-  // ===== Zeramento: aprende aos poucos (pergunta só o que não conhece) =====
- function zeroMapToken(token){
-  const t0 = (token ?? "").toString().trim();
-  if (!t0) return "";
-
-  const map = LSJ("zero_map") || {};
-  const key = t0.toLowerCase();
-
-  // 1) Se já tem no mapa, usa
-  if (map[key]) return map[key];
-
-  // 2) Aliases automáticos (corrige ROS -> ROSA etc.)
-  const aliases = {
-    "ros": "ROSA",
-    "rosa": "ROSA",
-    "fume": "FUME",   // se o ERP aceitar FUMÊ, troque aqui
-    "lar": "LAR",
-    "pre": "PRE",
-  };
-  if (aliases[key]){
-    map[key] = aliases[key];
-    LSJ("zero_map", map);
-    return map[key];
-  }
-
-  // 3) Números (ex: 304, 296) passam direto
-  if (/^[0-9]+$/.test(t0)){
-    map[key] = t0;
-    LSJ("zero_map", map);
-    return t0;
-  }
-
-  // 4) Só aceita automático se for tamanho/código curto conhecido
-  const knownShort = /^(P|M|G|GG|XG|XGG|XXG|PP|PM|46|48|50|52|54|56|58|60|41|42|43|44|45|PRE|AMO|MASC|FEM)$/i;
-  if (knownShort.test(t0)){
-    map[key] = t0.toUpperCase();
-    LSJ("zero_map", map);
-    return map[key];
-  }
-
-  // 5) Se for texto "grande" (ex: PARANA, XINGU, PANAMA) OBRIGA cadastrar
-  // (para você digitar 304 / 296 / etc.)
-  let resp = "";
-  while(!resp){
-    resp = (prompt(`ZERAMENTO: Como "${t0}" deve sair no TXT? (ex: 304 / 296 / 5279 / etc.)`) || "").trim();
-    if(!resp) alert(`Você precisa cadastrar "${t0}" para o TXT sair correto.`);
-  }
-
-  map[key] = resp;
-  LSJ("zero_map", map);
-  return resp;
-}
   
   function toNumberBR(x){
     const s = (x ?? "").toString().trim().replace(/\./g,"").replace(",",".");

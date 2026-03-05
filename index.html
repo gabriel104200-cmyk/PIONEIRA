@@ -875,34 +875,119 @@ function baixarTxt(kind){
   }
 
   // Conferência
-  function analisarConferencia(){
-    const cad = parseLines($("#txCad").value);
-    const inf = parseLines($("#txInf").value);
+function analisarConferencia(){
+  // Aqui "Cadastro" = Planilha 1 (base)
+  // e "Planilha informada" = Planilha 2 (comparação)
+  const p1 = parseLines($("#txCad").value);
+  const p2 = parseLines($("#txInf").value);
 
-    if(!cad.length || !inf.length){ toast("Cole o cadastro e a planilha informada.", false); return; }
-
-    const map = new Map();
-    for(const r of cad){
-      const cod = r[0]; const local = r[1];
-      if(cod) map.set(cod, local || "");
-    }
-
-    const rows = [];
-    const erros = [];
-    for(const r of inf){
-      const cod = r[0]; const locInf = r[1] || "";
-      const locCad = map.get(cod) || "";
-      const ok = (locCad && locCad === locInf);
-      rows.push([cod, locInf, locCad, ok ? "OK" : "ERRO"]);
-      if(!ok) erros.push([cod, locInf, locCad, "LOCAL DIVERGENTE"]);
-    }
-
-    LSJ("confErros", erros);
-    $("#tbConf").innerHTML = renderTable(["Código","Local informado","Local cadastrado","Status"], rows, {
-      highlightFn: (r)=>r[3]==="ERRO"
-    });
-    toast(`Análise concluída. Erros: ${erros.length}`);
+  if(!p1.length || !p2.length){
+    toast("Cole as duas planilhas para comparar.", false);
+    return;
   }
+
+  // Lê linha no formato:
+  // CODIGO | DESCRICAO | G1 | G2 | G3(opcional) | QTD
+  // (aceita também quando G3 vem vazio)
+  function readItem(r){
+    if(!r || !r.length) return null;
+
+    const codigo = (r[0] ?? "").toString().trim();
+    if(!codigo) return null;
+
+    const desc  = (r[1] ?? "").toString().trim();
+    const g1    = (r[2] ?? "").toString().trim();
+    const g2    = (r[3] ?? "").toString().trim();
+
+    // Pode vir: [codigo,desc,g1,g2,"",qtd] ou [codigo,desc,g1,g2,qtd]
+    let g3 = "";
+    let qtdStr = "";
+
+    if(r.length >= 6){
+      g3 = (r[4] ?? "").toString().trim();
+      qtdStr = (r[5] ?? "").toString().trim();
+    }else{
+      g3 = "";
+      qtdStr = (r[4] ?? "").toString().trim();
+    }
+
+    const qtd = Number((qtdStr || "0").toString().replace(/\./g,"").replace(",", "."));
+    const qtdOk = Number.isFinite(qtd) ? qtd : 0;
+
+    const key = [codigo, g1, g2, g3].join("|");
+    return { key, codigo, desc, g1, g2, g3, qtd: qtdOk };
+  }
+
+  // Soma itens repetidos dentro da mesma planilha
+  function buildMap(rows){
+    const map = new Map();
+    for(const r of rows){
+      const it = readItem(r);
+      if(!it) continue;
+
+      if(!map.has(it.key)){
+        map.set(it.key, { ...it });
+      }else{
+        map.get(it.key).qtd += it.qtd;
+      }
+    }
+    return map;
+  }
+
+  const m1 = buildMap(p1);
+  const m2 = buildMap(p2);
+
+  // Local fixo na saída (igual seu exemplo).
+  // Se quiser mudar depois, dá pra criar um input ou prompt.
+  const local = "2097";
+
+  const keys = new Set([...m1.keys(), ...m2.keys()]);
+  const divergRows = [];
+
+  for(const k of keys){
+    const a = m1.get(k);
+    const b = m2.get(k);
+
+    const codigo = (a?.codigo ?? b?.codigo ?? "");
+    const desc   = (a?.desc   ?? b?.desc   ?? "");
+    const g1     = (a?.g1     ?? b?.g1     ?? "");
+    const g2     = (a?.g2     ?? b?.g2     ?? "");
+    const g3     = (a?.g3     ?? b?.g3     ?? "");
+
+    const q1 = a?.qtd ?? 0; // planilha 1
+    const q2 = b?.qtd ?? 0; // planilha 2
+
+    // ✅ regra: sempre comparar Planilha2 - Planilha1
+    const diff = q2 - q1;
+
+    if(diff !== 0){
+      divergRows.push([local, codigo, desc, g1, g2, g3, diff]);
+    }
+  }
+
+  // Ordena pra ficar bonito
+  divergRows.sort((x,y)=>{
+    const a = (x[1]||"").localeCompare(y[1]||"");
+    if(a!==0) return a;
+    return (x[4]||"").localeCompare(y[4]||"");
+  });
+
+  LSJ("confErros", divergRows);
+
+  if(!divergRows.length){
+    $("#tbConf").innerHTML = `<div class="muted">✅ Não há divergências.</div>`;
+    toast("Não há divergências.");
+    return;
+  }
+
+  $("#tbConf").innerHTML = renderTable(
+    ["Local","Código","Descrição","Grade 1","Grade 2","Grade 3","Diferença (Plan2 - Plan1)"],
+    divergRows,
+    { highlightFn: (r)=> Number(r[6]) !== 0 }
+  );
+
+  toast(`Comparação concluída. Divergências: ${divergRows.length}`);
+}
 
   function limparConferencia(){
     $("#txCad").value=""; $("#txInf").value=""; $("#tbConf").innerHTML="";
@@ -910,17 +995,25 @@ function baixarTxt(kind){
     toast("Limpo.");
   }
 
-  function baixarErrosConferencia(){
-    const erros = LSJ("confErros") || [];
-    if(!erros.length){ toast("Sem erros para baixar.", false); return; }
-    const txt = erros.map(r=>r.join(";")).join("\n");
-    const blob = new Blob([txt], {type:"text/plain;charset=utf-8"});
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "erros_conferencia.txt";
-    a.click();
-    URL.revokeObjectURL(a.href);
+function baixarErrosConferencia(){
+  const erros = LSJ("confErros") || [];
+  if(!erros.length){
+    toast("Sem divergências para baixar.", false);
+    return;
   }
+
+  // TXT em TAB (fica perfeito pra colar no Excel)
+  const txt = erros.map(r => r.join("\t")).join("\r\n") + "\r\n";
+
+  const blob = new Blob([txt], {type:"text/plain;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "divergencias_comparacao.txt";
+  a.click();
+  URL.revokeObjectURL(a.href);
+
+  toast("TXT de divergências baixado.");
+}
 
   // Produção: esperado = saída * 3
   function conferirProducao(){

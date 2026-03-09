@@ -324,29 +324,25 @@
             <div id="tbConf"></div>
           </section>
 
-          <!-- PRODUÇÃO -->
-          <section data-section="producao" class="hidden">
-            <h2>🏭 Entrada x Saída (Produção)</h2>
-            <p class="muted">Cole 2 planilhas: A) Entrada (componentes) | B) Saída (produto final). Esperado = Saída × 3.</p>
+         <!-- CONF. ESTOQUE -->
+<section data-section="producao" class="hidden">
+  <h2>📦 Conf. Estoque</h2>
+  <p class="muted">Cole a planilha completa do estoque. O sistema vai identificar produtos em local divergente com base no local padrão do próprio código.</p>
 
-            <div class="row">
-              <div style="flex:1">
-                <label class="muted">Planilha A — Entrada</label>
-                <textarea id="txProdA" placeholder="NOME;G1;G2;G3;QTD"></textarea>
-              </div>
-              <div style="flex:1">
-                <label class="muted">Planilha B — Saída</label>
-                <textarea id="txProdB" placeholder="NOME;G1;G2;G3;QTD"></textarea>
-              </div>
-            </div>
+  <div class="row">
+    <div style="flex:1">
+      <label class="muted">Planilha de estoque</label>
+      <textarea id="txProdA" placeholder="LOCAL;CODIGO PRODUTO;DESCRICAO;GRADE1;GRADE2;GRADE3;QUANTIDADE"></textarea>
+    </div>
+  </div>
 
-            <div class="row" style="margin-top:10px">
-              <button class="btn primary" onclick="conferirProducao()">Conferir</button>
-              <button class="btn" onclick="limparProducao()">Limpar</button>
-            </div>
+  <div class="row" style="margin-top:10px">
+    <button class="btn primary" onclick="conferirProducao()">Analisar</button>
+    <button class="btn" onclick="limparProducao()">Limpar</button>
+  </div>
 
-            <div id="tbProd"></div>
-          </section>
+  <div id="tbProd"></div>
+</section>
 
           <!-- ADMIN -->
           <section data-section="admin" class="hidden">
@@ -1053,51 +1049,110 @@ function baixarErrosConferencia(){
   toast("TXT de divergências baixado.");
 }
 
-  // Produção: esperado = saída * 3
-  function conferirProducao(){
-    const A = parseLines($("#txProdA").value);
-    const B = parseLines($("#txProdB").value);
-    if(!A.length || !B.length){ toast("Cole as duas planilhas.", false); return; }
-
-    const key = (r)=> [r[0],r[1],r[2],r[3]].join("|"); // nome+grades
-    const entrada = new Map();
-    for(const r of A){
-      const k = key(r);
-      const qtd = Number(r[4]||0);
-      entrada.set(k, (entrada.get(k)||0) + qtd);
-    }
-    const saida = new Map();
-    for(const r of B){
-      const k = key(r);
-      const qtd = Number(r[4]||0);
-      saida.set(k, (saida.get(k)||0) + qtd);
-    }
-
-    const keys = new Set([...entrada.keys(), ...saida.keys()]);
-    const rows = [];
-    const erros = [];
-    for(const k of keys){
-      const [nome,g1,g2,g3] = k.split("|");
-      const ent = entrada.get(k)||0;
-      const sai = saida.get(k)||0;
-      const esperado = sai * 3;
-      const diff = ent - esperado;
-      rows.push([nome,g1,g2,g3, ent, esperado, diff]);
-      if(diff !== 0) erros.push([nome,g1,g2,g3, ent, esperado, diff]);
-    }
-
-    $("#tbProd").innerHTML = renderTable(
-      ["Nome","Grade 1","Grade 2","Grade 3","Entrada","Esperado (Saída×3)","Diferença"],
-      rows,
-      { highlightFn: (r)=>Number(r[6])!==0 }
-    );
-    toast(`Conferência concluída. Itens divergentes: ${erros.length}`);
+function conferirProducao(){
+  const rows = parseLines($("#txProdA").value);
+  if(!rows.length){
+    toast("Cole a planilha de estoque.", false);
+    return;
   }
 
-  function limparProducao(){
-    $("#txProdA").value=""; $("#txProdB").value=""; $("#tbProd").innerHTML="";
-    toast("Limpo.");
+  // Remove linhas inválidas, vazias ou com "-"
+  const dados = rows
+    .filter(r => r && r.length >= 7)
+    .filter(r => (r[0] || "").toString().trim() !== "-")
+    .map(r => ({
+      local: (r[0] ?? "").toString().trim(),
+      codigo: (r[1] ?? "").toString().trim(),
+      descricao: (r[2] ?? "").toString().trim(),
+      g1: (r[3] ?? "").toString().trim(),
+      g2: (r[4] ?? "").toString().trim(),
+      g3: (r[5] ?? "").toString().trim(),
+      qtd: Number(((r[6] ?? "0").toString().trim()).replace(/\./g,"").replace(",", ".")) || 0
+    }))
+    .filter(x => x.local && x.codigo);
+
+  if(!dados.length){
+    toast("Nenhuma linha válida encontrada.", false);
+    return;
   }
+
+  // Descobre o local padrão por código:
+  // regra = local com maior quantidade total daquele código
+  const mapaCodigoLocal = new Map();
+
+  for(const item of dados){
+    if(!mapaCodigoLocal.has(item.codigo)){
+      mapaCodigoLocal.set(item.codigo, new Map());
+    }
+    const locMap = mapaCodigoLocal.get(item.codigo);
+    locMap.set(item.local, (locMap.get(item.local) || 0) + item.qtd);
+  }
+
+  function getLocalCorreto(codigo){
+    const locMap = mapaCodigoLocal.get(codigo);
+    if(!locMap) return "";
+
+    let melhorLocal = "";
+    let maiorQtd = -1;
+
+    for(const [local, qtd] of locMap.entries()){
+      if(qtd > maiorQtd){
+        maiorQtd = qtd;
+        melhorLocal = local;
+      }
+    }
+
+    return melhorLocal;
+  }
+
+  const divergencias = [];
+
+  for(const item of dados){
+    const localCorreto = getLocalCorreto(item.codigo);
+
+    if(localCorreto && item.local !== localCorreto){
+      divergencias.push([
+        item.local,
+        localCorreto,
+        item.codigo,
+        item.descricao,
+        item.g1,
+        item.g2,
+        item.g3,
+        item.qtd
+      ]);
+    }
+  }
+
+  divergencias.sort((a,b)=>{
+    const c1 = (a[2] || "").localeCompare(b[2] || "");
+    if(c1 !== 0) return c1;
+    return (a[0] || "").localeCompare(b[0] || "");
+  });
+
+  LSJ("confEstoqueErros", divergencias);
+
+  if(!divergencias.length){
+    $("#tbProd").innerHTML = `<div class="muted">✅ Nenhuma divergência de local encontrada.</div>`;
+    toast("Nenhuma divergência encontrada.");
+    return;
+  }
+
+  $("#tbProd").innerHTML = renderTable(
+    ["Local informado","Local correto","Código","Descrição","Grade 1","Grade 2","Grade 3","Quantidade"],
+    divergencias,
+    { highlightFn: () => true }
+  );
+
+  toast(`Análise concluída. Divergências encontradas: ${divergencias.length}`);
+}
+
+function limparProducao(){
+  $("#txProdA").value = "";
+  $("#tbProd").innerHTML = "";
+  LSJ("confEstoqueErros", []);
+  toast("Limpo.");
+}
 
   // Admin
   function salvarEmail(){ LS("email", $("#adEmail").value||""); toast("Email salvo."); }

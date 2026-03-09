@@ -823,12 +823,21 @@ function salvarEXS(){
 }
 
   function limparEXS(){
-    LSJ("exs", null);
-    $("#exSaldo").value=0; $("#exEntrada").value=0; $("#exSaida").value=0; $("#exAjuste").value=0;
-    LSJ("exsResumo", null);
-    refreshResumo();
-    toast("Zerado.");
-  }
+  LSJ("exs", null);
+  $("#exSaldo").value = 0;
+  $("#exEntrada").value = 0;
+  $("#exSaida").value = 0;
+  $("#exRealInput").value = 0;
+  $("#exAjuste").value = 0;
+
+  $("#exTotal").textContent = 0;
+  $("#exReal").textContent = 0;
+  $("#exDiff").textContent = 0;
+
+  LSJ("exsResumo", null);
+  refreshResumo();
+  toast("Zerado.");
+}
 
   function refreshResumo(){
     const r = LSJ("exsResumo") || { total:"—", real:"—", diff:"—" };

@@ -175,23 +175,25 @@
             <h2>🏠 Início</h2>
             <p class="muted">Resumo do “Entrada x Saída”.</p>
 
-            <div class="kpi">
-              <div class="box">
-                <div class="muted">Total (teórico)</div>
-                <div class="val" id="kTotal">—</div>
-              </div>
-              <div class="box">
-                <div class="muted">Real</div>
-                <div class="val" id="kReal">—</div>
-              </div>
-              <div class="box">
-                <div class="muted">Diferença</div>
-                <div class="val" id="kDiff">—</div>
-              </div>
-            </div>
+        <div class="kpi">
+  <div class="box">
+    <div class="muted">Total (teórico)</div>
+    <div class="val" id="kTotal">—</div>
+  </div>
+  <div class="box">
+    <div class="muted">Real</div>
+    <div class="val" id="kReal">—</div>
+  </div>
+  <div class="box">
+    <div class="muted">Diferença</div>
+    <div class="val" id="kDiff">—</div>
+  </div>
+</div>
+
+<div class="muted tiny" style="margin-top:8px" id="kDataInfo">Nenhum dia selecionado.</div>
 
             <div class="row" style="margin-top:10px">
-              <button class="btn primary" onclick="goto('exs')">Abrir Entrada x Saída</button>
+              <button class="btn primary" onclick="abrirExsDiaSelecionado()">Abrir Entrada x Saída</button>
               <button class="btn" onclick="refreshResumo()">Atualizar painel</button>
               <button class="btn good" onclick="marcarHoje()">Marcar hoje (bateu)</button>
             </div>
@@ -814,7 +816,11 @@ function salvarEXS(){
     real: Number($("#exRealInput").value || 0),
     ajuste: Number($("#exAjuste").value || 0)
   });
+
   calcEXS();
+  salvarExsDoDia();
+  carregarResumoDoDia(hojeKey());
+  montarCalendario();
   toast("Salvo.");
 }
 
@@ -834,54 +840,188 @@ function salvarEXS(){
   refreshResumo();
   toast("Zerado.");
 }
+  
+function hojeKey(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
 
+function formatarDataBR(key){
+  if(!key) return "";
+  const [y,m,d] = key.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+function getExsHistorico(){
+  return LSJ("exsHistorico") || {};
+}
+
+function setExsHistorico(data){
+  LSJ("exsHistorico", data);
+}
+
+function salvarExsDoDia(){
+  const historico = getExsHistorico();
+  const key = hojeKey();
+
+  const saldo = Number($("#exSaldo").value || 0);
+  const entrada = Number($("#exEntrada").value || 0);
+  const saida = Number($("#exSaida").value || 0);
+  const real = Number($("#exRealInput").value || 0);
+  let ajuste = Number($("#exAjuste").value || 0);
+  ajuste = ajuste * -1;
+
+  const total = saldo + entrada - saida;
+  const diff = (total - real) + ajuste;
+
+  historico[key] = {
+    saldo,
+    entrada,
+    saida,
+    real,
+    ajusteDigitado: Number($("#exAjuste").value || 0),
+    ajusteAplicado: ajuste,
+    total,
+    diff
+  };
+
+  setExsHistorico(historico);
+  LS("exs_selected_day", key);
+}
+
+function carregarResumoDoDia(key){
+  const historico = getExsHistorico();
+  const item = historico[key];
+
+  if(!item){
+    $("#kTotal").textContent = "—";
+    $("#kReal").textContent = "—";
+    $("#kDiff").textContent = "—";
+    $("#kDataInfo").textContent = `Sem dados salvos para ${formatarDataBR(key)}.`;
+    return;
+  }
+
+  $("#kTotal").textContent = item.total ?? "—";
+  $("#kReal").textContent = item.real ?? "—";
+  $("#kDiff").textContent = item.diff ?? "—";
+  $("#kDataInfo").textContent = `Dados salvos em ${formatarDataBR(key)}.`;
+}
+
+function abrirExsDiaSelecionado(){
+  const key = LS("exs_selected_day") || hojeKey();
+  const historico = getExsHistorico();
+  const item = historico[key];
+
+  goto("exs");
+
+  if(!item){
+    toast(`Não há dados salvos para ${formatarDataBR(key)}.`, false);
+    setTimeout(()=>setModoExs(true, key), 50);
+    return;
+  }
+
+  $("#exSaldo").value = item.saldo ?? 0;
+  $("#exEntrada").value = item.entrada ?? 0;
+  $("#exSaida").value = item.saida ?? 0;
+  $("#exRealInput").value = item.real ?? 0;
+  $("#exAjuste").value = item.ajusteDigitado ?? 0;
+
+  calcEXS();
+
+  const isHoje = key === hojeKey();
+  setModoExs(isHoje, key);
+}
+
+function setModoExs(editavel, key){
+  const ids = ["exSaldo","exEntrada","exSaida","exRealInput","exAjuste"];
+  ids.forEach(id => {
+    const el = $("#"+id);
+    if(el) el.disabled = !editavel;
+  });
+
+  const infoId = "exsModoInfo";
+  let info = $("#"+infoId);
+  if(!info){
+    info = document.createElement("div");
+    info.id = infoId;
+    info.className = "muted tiny";
+    info.style.marginTop = "8px";
+    const alvo = document.querySelector('[data-section="exs"] .kpi');
+    if(alvo) alvo.insertAdjacentElement("afterend", info);
+  }
+
+  if(editavel){
+    info.textContent = `Modo edição liberado para ${formatarDataBR(key)}.`;
+  }else{
+    info.textContent = `Modo consulta: ${formatarDataBR(key)}. Para alterar, somente o dono do sistema.`;
+  }
+}
+  
   function refreshResumo(){
-    const r = LSJ("exsResumo") || { total:"—", real:"—", diff:"—" };
-    $("#kTotal").textContent = (r.total ?? "—");
-    $("#kReal").textContent = (r.real ?? "—");
-    $("#kDiff").textContent = (r.diff ?? "—");
-  }
-
+  const selected = LS("exs_selected_day") || hojeKey();
+  carregarResumoDoDia(selected);
+}
+  
   function marcarHoje(){
-    const d = new Date();
-    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-    const map = LSJ("bateu") || {};
-    map[key] = !map[key];
-    LSJ("bateu", map);
-    montarCalendario();
-    toast(map[key] ? "Dia marcado como bateu." : "Marca removida.");
+  const key = hojeKey();
+  const historico = getExsHistorico();
+
+  if(!historico[key]){
+    toast("Salve primeiro a Entrada x Saída de hoje antes de marcar como bateu.", false);
+    return;
   }
 
-  function montarCalendario(){
-    const d = new Date();
-    const y = d.getFullYear(), m = d.getMonth();
-    const first = new Date(y,m,1);
-    const last = new Date(y,m+1,0);
-    const bateu = LSJ("bateu") || {};
+  const map = LSJ("bateu") || {};
+  map[key] = !map[key];
+  LSJ("bateu", map);
 
-    let html = `<div class="muted">📅 ${first.toLocaleString("pt-BR",{month:"long"})} / ${y}</div>`;
-    html += `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:8px">`;
-    const wd = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
-    for(const w of wd) html += `<div class="muted tiny" style="text-align:center">${w}</div>`;
+  LS("exs_selected_day", key);
+  carregarResumoDoDia(key);
+  montarCalendario();
 
-    const pad = first.getDay();
-    for(let i=0;i<pad;i++) html += `<div></div>`;
-    for(let day=1;day<=last.getDate();day++){
-      const key = `${y}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-      const on = !!bateu[key];
-      html += `<button class="btn" style="padding:10px;border-radius:12px;${on?'background:rgba(34,197,94,.18);border-color:rgba(34,197,94,.35)':''}"
-               onclick="toggleDia('${key}')">${day}</button>`;
-    }
-    html += `</div>`;
-    $("#cal").innerHTML = html;
+  toast(map[key] ? "Dia de hoje marcado como bateu." : "Marca do dia de hoje removida.");
+}
+
+ function montarCalendario(){
+  const d = new Date();
+  const y = d.getFullYear(), m = d.getMonth();
+  const first = new Date(y,m,1);
+  const last = new Date(y,m+1,0);
+  const bateu = LSJ("bateu") || {};
+  const historico = getExsHistorico();
+  const selecionado = LS("exs_selected_day") || hojeKey();
+
+  let html = `<div class="muted">📅 ${first.toLocaleString("pt-BR",{month:"long"})} / ${y}</div>`;
+  html += `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:8px">`;
+  const wd = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+  for(const w of wd) html += `<div class="muted tiny" style="text-align:center">${w}</div>`;
+
+  const pad = first.getDay();
+  for(let i=0;i<pad;i++) html += `<div></div>`;
+
+  for(let day=1;day<=last.getDate();day++){
+    const key = `${y}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+    const on = !!bateu[key];
+    const temDados = !!historico[key];
+    const ativo = key === selecionado;
+
+    let style = `padding:10px;border-radius:12px;`;
+    if(on) style += `background:rgba(34,197,94,.18);border-color:rgba(34,197,94,.35);`;
+    else if(temDados) style += `background:rgba(124,58,237,.12);border-color:rgba(124,58,237,.30);`;
+    if(ativo) style += `outline:2px solid rgba(255,255,255,.18);`;
+
+    html += `<button class="btn" style="${style}" onclick="selecionarDia('${key}')">${day}</button>`;
   }
 
-  function toggleDia(key){
-    const map = LSJ("bateu") || {};
-    map[key] = !map[key];
-    LSJ("bateu", map);
-    montarCalendario();
-  }
+  html += `</div>`;
+  $("#cal").innerHTML = html;
+}
+
+  function selecionarDia(key){
+  LS("exs_selected_day", key);
+  carregarResumoDoDia(key);
+  montarCalendario();
+}
 
 function toggleDia(key){
   const map = LSJ("bateu") || {};
@@ -1210,6 +1350,11 @@ if(exs){
     setupUI();
     const v = (location.hash||"#inicio").replace("#","");
     setView(v);
+    if(!LS("exs_selected_day")){
+  LS("exs_selected_day", hojeKey());
+}
+carregarResumoDoDia(LS("exs_selected_day"));
+montarCalendario();
 
     // Register SW
     if("serviceWorker" in navigator){

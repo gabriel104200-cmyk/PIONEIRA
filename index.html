@@ -988,30 +988,34 @@ function setModoExs(editavel, key){
   const first = new Date(y,m,1);
   const last = new Date(y,m+1,0);
   const bateu = LSJ("bateu") || {};
-  const historico = getExsHistorico();
   const selecionado = LS("exs_selected_day") || hojeKey();
+  const hoje = hojeKey();
 
   let html = `<div class="muted">📅 ${first.toLocaleString("pt-BR",{month:"long"})} / ${y}</div>`;
   html += `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:8px">`;
+
   const wd = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
-  for(const w of wd) html += `<div class="muted tiny" style="text-align:center">${w}</div>`;
+  for(const w of wd){
+    html += `<div class="muted tiny" style="text-align:center">${w}</div>`;
+  }
 
   const pad = first.getDay();
   for(let i=0;i<pad;i++) html += `<div></div>`;
 
-  for(let day=1;day<=last.getDate();day++){
+  for(let day=1; day<=last.getDate(); day++){
     const key = `${y}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-    const on = !!bateu[key];
-    const temDados = !!historico[key];
+    const on = !!bateu[key] && key <= hoje;
     const ativo = key === selecionado;
 
     let style = `padding:10px;border-radius:12px;`;
-    
-    if(on) {
-    style += `background:rgba(34,197,94,.18);border-color:rgba(34,197,94,.35);`;
-  }
-    
-    if(ativo) style += `outline:2px solid rgba(255,255,255,.18);`;
+
+    if(on){
+      style += `background:rgba(34,197,94,.18);border-color:rgba(34,197,94,.35);`;
+    }
+
+    if(ativo){
+      style += `outline:2px solid rgba(255,255,255,.18);`;
+    }
 
     html += `<button class="btn" style="${style}" onclick="selecionarDia('${key}')">${day}</button>`;
   }
@@ -1308,7 +1312,20 @@ function limparProducao(){
     localStorage.clear();
     setupUI();
   }
+  
+function limparBateuFuturo(){
+  const bateu = LSJ("bateu") || {};
+  const hoje = hojeKey();
 
+  for(const key in bateu){
+    if(key > hoje){
+      delete bateu[key];
+    }
+  }
+
+  LSJ("bateu", bateu);
+}
+  
   // ---------- Init ----------
   document.addEventListener("DOMContentLoaded", ()=>{
     // Puxar dados salvos
@@ -1351,6 +1368,7 @@ if(exs){
     };
 
     setupUI();
+limparBateuFuturo();
     const v = (location.hash||"#inicio").replace("#","");
     setView(v);
     if(!LS("exs_selected_day")){

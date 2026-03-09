@@ -1006,8 +1006,11 @@ function setModoExs(editavel, key){
     const ativo = key === selecionado;
 
     let style = `padding:10px;border-radius:12px;`;
-    if(on) style += `background:rgba(34,197,94,.18);border-color:rgba(34,197,94,.35);`;
-    else if(temDados) style += `background:rgba(124,58,237,.12);border-color:rgba(124,58,237,.30);`;
+    
+    if(on) {
+    style += `background:rgba(34,197,94,.18);border-color:rgba(34,197,94,.35);`;
+  }
+    
     if(ativo) style += `outline:2px solid rgba(255,255,255,.18);`;
 
     html += `<button class="btn" style="${style}" onclick="selecionarDia('${key}')">${day}</button>`;

@@ -259,23 +259,27 @@
             <p class="muted">Controle simples: Saldo inicial + Entrada - Saída + Ajuste.</p>
 
             <div class="row">
-              <div style="flex:1">
-                <label class="muted">Saldo inicial do mês</label>
-                <input id="exSaldo" type="number" value="0">
-              </div>
-              <div style="flex:1">
-                <label class="muted">Entrada</label>
-                <input id="exEntrada" type="number" value="0">
-              </div>
-              <div style="flex:1">
-                <label class="muted">Saída</label>
-                <input id="exSaida" type="number" value="0">
-              </div>
-              <div style="flex:1">
-                <label class="muted">Ajuste</label>
-                <input id="exAjuste" type="number" value="0">
-              </div>
-            </div>
+  <div style="flex:1">
+    <label class="muted">Saldo inicial do mês</label>
+    <input id="exSaldo" type="number" step="any" value="0">
+  </div>
+  <div style="flex:1">
+    <label class="muted">Entrada</label>
+    <input id="exEntrada" type="number" step="any" value="0">
+  </div>
+  <div style="flex:1">
+    <label class="muted">Saída</label>
+    <input id="exSaida" type="number" step="any" value="0">
+  </div>
+  <div style="flex:1">
+    <label class="muted">Real</label>
+    <input id="exRealInput" type="number" step="any" value="0">
+  </div>
+  <div style="flex:1">
+    <label class="muted">Ajuste</label>
+    <input id="exAjuste" type="number" step="any" value="0">
+  </div>
+</div>
 
             <div class="row" style="margin-top:10px">
               <button class="btn good" onclick="calcEXS()">Aplicar</button>
@@ -806,17 +810,17 @@ function baixarTxt(kind){
   URL.revokeObjectURL(a.href);
 }
   
-  function salvarEXS(){
-    LSJ("exs", {
-      saldo: Number($("#exSaldo").value||0),
-      entrada: Number($("#exEntrada").value||0),
-      saida: Number($("#exSaida").value||0),
-      ajuste: Number($("#exAjuste").value||0),
-      real: Number(LS("exs_real")||0)
-    });
-    calcEXS();
-    toast("Salvo.");
-  }
+function salvarEXS(){
+  LSJ("exs", {
+    saldo: Number($("#exSaldo").value || 0),
+    entrada: Number($("#exEntrada").value || 0),
+    saida: Number($("#exSaida").value || 0),
+    real: Number($("#exRealInput").value || 0),
+    ajuste: Number($("#exAjuste").value || 0)
+  });
+  calcEXS();
+  toast("Salvo.");
+}
 
   function limparEXS(){
     LSJ("exs", null);
@@ -885,15 +889,22 @@ function calcEXS(){
   const saldo = Number($("#exSaldo").value || 0);
   const entrada = Number($("#exEntrada").value || 0);
   const saida = Number($("#exSaida").value || 0);
+  const real = Number($("#exRealInput").value || 0);
   const ajuste = Number($("#exAjuste").value || 0);
 
-  const total = saldo + entrada - saida + ajuste;
+  // Total teórico sem ajuste
+  const total = saldo + entrada - saida;
 
-  let real = Number(LS("exs_real") || 0);
-  const exsSalvo = LSJ("exs");
-  if(exsSalvo && exsSalvo.real !== undefined){
-    real = Number(exsSalvo.real || 0);
-  }
+  // Diferença final considerando ajuste
+  const diff = (total - real) + ajuste;
+
+  $("#exTotal").textContent = total;
+  $("#exReal").textContent = real;
+  $("#exDiff").textContent = diff;
+
+  LSJ("exsResumo", { total, real, diff });
+  refreshResumo();
+}
 
   const diff = real - total;
 
@@ -1106,13 +1117,14 @@ function baixarErrosConferencia(){
     // Puxar dados salvos
     $("#txManual").value = LS("manual")||"";
     const exs = LSJ("exs");
-    if(exs){
-      $("#exSaldo").value = exs.saldo ?? 0;
-      $("#exEntrada").value = exs.entrada ?? 0;
-      $("#exSaida").value = exs.saida ?? 0;
-      $("#exAjuste").value = exs.ajuste ?? 0;
-      calcEXS();
-    }
+if(exs){
+  $("#exSaldo").value = exs.saldo ?? 0;
+  $("#exEntrada").value = exs.entrada ?? 0;
+  $("#exSaida").value = exs.saida ?? 0;
+  $("#exRealInput").value = exs.real ?? 0;
+  $("#exAjuste").value = exs.ajuste ?? 0;
+  calcEXS();
+}
 
     // Login UI
     $("#btnLogin").onclick = ()=> login($("#lgUser").value.trim(), $("#lgPass").value);

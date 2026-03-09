@@ -895,7 +895,10 @@ function calcEXS(){
   const entrada = Number($("#exEntrada").value || 0);
   const saida = Number($("#exSaida").value || 0);
   const real = Number($("#exRealInput").value || 0);
-  const ajuste = Number($("#exAjuste").value || 0);
+
+  // ajuste invertido automaticamente
+  let ajuste = Number($("#exAjuste").value || 0);
+  ajuste = ajuste * -1;
 
   const total = saldo + entrada - saida;
   const diff = (total - real) + ajuste;

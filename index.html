@@ -874,7 +874,38 @@ function baixarTxt(kind){
     montarCalendario();
   }
 
-  // Conferência
+function toggleDia(key){
+  const map = LSJ("bateu") || {};
+  map[key] = !map[key];
+  LSJ("bateu", map);
+  montarCalendario();
+}
+
+function calcEXS(){
+  const saldo = Number($("#exSaldo").value || 0);
+  const entrada = Number($("#exEntrada").value || 0);
+  const saida = Number($("#exSaida").value || 0);
+  const ajuste = Number($("#exAjuste").value || 0);
+
+  const total = saldo + entrada - saida + ajuste;
+
+  let real = Number(LS("exs_real") || 0);
+  const exsSalvo = LSJ("exs");
+  if(exsSalvo && exsSalvo.real !== undefined){
+    real = Number(exsSalvo.real || 0);
+  }
+
+  const diff = real - total;
+
+  $("#exTotal").textContent = total;
+  $("#exReal").textContent = real;
+  $("#exDiff").textContent = diff;
+
+  LSJ("exsResumo", { total, real, diff });
+  refreshResumo();
+}
+
+// Conferência
 function analisarConferencia(){
   // Aqui "Cadastro" = Planilha 1 (base)
   // e "Planilha informada" = Planilha 2 (comparação)

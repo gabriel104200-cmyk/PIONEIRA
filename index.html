@@ -892,10 +892,7 @@ function calcEXS(){
   const real = Number($("#exRealInput").value || 0);
   const ajuste = Number($("#exAjuste").value || 0);
 
-  // Total teórico sem ajuste
   const total = saldo + entrada - saida;
-
-  // Diferença final considerando ajuste
   const diff = (total - real) + ajuste;
 
   $("#exTotal").textContent = total;
@@ -905,17 +902,7 @@ function calcEXS(){
   LSJ("exsResumo", { total, real, diff });
   refreshResumo();
 }
-
-  const diff = real - total;
-
-  $("#exTotal").textContent = total;
-  $("#exReal").textContent = real;
-  $("#exDiff").textContent = diff;
-
-  LSJ("exsResumo", { total, real, diff });
-  refreshResumo();
-}
-
+  
 // Conferência
 function analisarConferencia(){
   // Aqui "Cadastro" = Planilha 1 (base)
